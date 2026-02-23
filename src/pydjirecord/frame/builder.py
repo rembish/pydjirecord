@@ -27,6 +27,7 @@ from ..record.smart_battery_group import (
 from ..utils import append_message
 from . import Frame
 from .battery import FrameBattery
+from .recover import FrameRecover
 
 if TYPE_CHECKING:
     from ..layout.details import Details
@@ -43,6 +44,15 @@ def records_to_frames(records: list[Record], details: Details) -> list[Frame]:
         cell_voltages=[0.0] * cell_num,
         is_cell_voltage_estimated=True,
     )
+    frame.recover = FrameRecover(
+        app_platform=details.app_platform,
+        app_version=details.app_version,
+        aircraft_name=details.aircraft_name,
+        aircraft_sn=details.aircraft_sn,
+        camera_sn=details.camera_sn,
+        rc_sn=details.rc_sn,
+        battery_sn=details.battery_sn,
+    )
 
     frame_index = 0
 
@@ -56,8 +66,10 @@ def records_to_frames(records: list[Record], details: Details) -> list[Frame]:
                 _reset(frame)
 
             frame.osd.fly_time = data.fly_time
-            frame.osd.latitude = data.latitude
-            frame.osd.longitude = data.longitude
+            # Only update coordinates if valid, preserving any prior values
+            if data.latitude != 0.0 or data.longitude != 0.0:
+                frame.osd.latitude = data.latitude
+                frame.osd.longitude = data.longitude
             frame.osd.altitude = data.altitude + frame.home.altitude
             frame.osd.height = data.altitude
             frame.osd.vps_height = data.s_wave_height
@@ -167,11 +179,14 @@ def records_to_frames(records: list[Record], details: Details) -> list[Frame]:
 
         elif isinstance(data, SmartBatterySingleVoltage):
             n = min(len(frame.battery.cell_voltages), data.cell_count)
+            frame.battery.cell_voltages = [0.0] * len(frame.battery.cell_voltages)
             frame.battery.is_cell_voltage_estimated = False
             frame.battery.cell_voltages[:n] = data.cell_voltages[:n]
 
         elif isinstance(data, SmartBatteryStatic):
-            pass  # No frame fields to set
+            frame.battery.design_capacity = data.designed_capacity
+            frame.battery.lifetime_remaining = data.battery_life
+            frame.battery.number_of_discharges = data.loop_times
 
         elif isinstance(data, OFDM):
             if data.is_up:
@@ -183,8 +198,10 @@ def records_to_frames(records: list[Record], details: Details) -> list[Frame]:
             frame.custom.date_time = data.update_timestamp
 
         elif isinstance(data, Home):
-            frame.home.latitude = data.latitude
-            frame.home.longitude = data.longitude
+            # Only update home coordinates if valid
+            if data.latitude != 0.0 or data.longitude != 0.0:
+                frame.home.latitude = data.latitude
+                frame.home.longitude = data.longitude
             if frame.home.altitude == 0.0:
                 frame.osd.altitude += data.altitude
             frame.home.altitude = data.altitude
@@ -212,10 +229,15 @@ def records_to_frames(records: list[Record], details: Details) -> list[Frame]:
             frame.recover.app_platform = data.app_platform
             frame.recover.app_version = data.app_version
             frame.recover.aircraft_name = data.aircraft_name
-            frame.recover.aircraft_sn = data.aircraft_sn
-            frame.recover.camera_sn = data.camera_sn
-            frame.recover.rc_sn = data.rc_sn
-            frame.recover.battery_sn = data.battery_sn
+            # Only update serials if the new value is at least as long
+            if len(data.aircraft_sn) >= len(frame.recover.aircraft_sn):
+                frame.recover.aircraft_sn = data.aircraft_sn
+            if len(data.camera_sn) >= len(frame.recover.camera_sn):
+                frame.recover.camera_sn = data.camera_sn
+            if len(data.rc_sn) >= len(frame.recover.rc_sn):
+                frame.recover.rc_sn = data.rc_sn
+            if len(data.battery_sn) >= len(frame.recover.battery_sn):
+                frame.recover.battery_sn = data.battery_sn
 
         elif isinstance(data, AppTip):
             frame.app.tip = append_message(frame.app.tip, data.message)

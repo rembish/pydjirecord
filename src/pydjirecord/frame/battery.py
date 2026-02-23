@@ -12,6 +12,7 @@ class FrameBattery:
     charge_level: int = 0
     voltage: float = 0.0
     current: float = 0.0
+    design_capacity: int = 0
     current_capacity: int = 0
     full_capacity: int = 0
     cell_num: int = 0
@@ -22,3 +23,5 @@ class FrameBattery:
     temperature: float = 0.0
     min_temperature: float = 0.0
     max_temperature: float = 0.0
+    number_of_discharges: int = 0
+    lifetime_remaining: int = 0

@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from dotenv import load_dotenv
+
 from .djilog import DJILog
 from .export.csv import export_csv
 from .export.geojson import export_geojson
@@ -17,22 +19,6 @@ from .export.kml import export_kml
 if TYPE_CHECKING:
     from .keychain.api import KeychainFeaturePoint
     from .layout.details import Details
-
-
-def _load_dotenv() -> None:
-    """Load key=value pairs from .env in the current directory, if present."""
-    env_path = Path(".env")
-    if not env_path.is_file():
-        return
-    for line in env_path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        key, _, value = line.partition("=")
-        key = key.strip()
-        value = value.strip().strip("\"'")
-        if key and key not in os.environ:
-            os.environ[key] = value
 
 
 def _format_location(details: Details) -> str:
@@ -129,7 +115,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     """CLI entry point."""
-    _load_dotenv()
+    load_dotenv()
 
     parser = build_parser()
     args = parser.parse_args(argv)
