@@ -1,0 +1,118 @@
+"""Tests for the CLI entry point."""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from pydjirecord.__main__ import main
+
+EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
+SAMPLE_LOG = EXAMPLES_DIR / "DJIFlightRecord_2021-05-25_[18-31-35].txt"
+
+
+class TestInfoOutput:
+    def test_default_prints_info(self, capsys: pytest.CaptureFixture[str]) -> None:
+        main([str(SAMPLE_LOG)])
+        out = capsys.readouterr().out
+        assert "Log version:" in out
+        assert "Aircraft:" in out
+        assert "Flight stats:" in out
+
+    def test_info_contains_version(self, capsys: pytest.CaptureFixture[str]) -> None:
+        main([str(SAMPLE_LOG)])
+        out = capsys.readouterr().out
+        assert "Log version:  14" in out
+
+    def test_info_contains_serial(self, capsys: pytest.CaptureFixture[str]) -> None:
+        main([str(SAMPLE_LOG)])
+        out = capsys.readouterr().out
+        assert "Aircraft SN:" in out
+
+    def test_info_contains_coordinates(self, capsys: pytest.CaptureFixture[str]) -> None:
+        main([str(SAMPLE_LOG)])
+        out = capsys.readouterr().out
+        assert "Coordinates:" in out
+
+    def test_info_contains_app(self, capsys: pytest.CaptureFixture[str]) -> None:
+        main([str(SAMPLE_LOG)])
+        out = capsys.readouterr().out
+        assert "App:" in out
+
+
+class TestJsonOutput:
+    def test_json_to_stdout(self, capsys: pytest.CaptureFixture[str]) -> None:
+        main([str(SAMPLE_LOG), "--json"])
+        out = capsys.readouterr().out
+        data = json.loads(out)
+        assert data["version"] == 14
+        assert "details" in data
+
+    def test_json_has_details_fields(self, capsys: pytest.CaptureFixture[str]) -> None:
+        main([str(SAMPLE_LOG), "--json"])
+        out = capsys.readouterr().out
+        details = json.loads(out)["details"]
+        assert "aircraft_sn" in details
+        assert "product_type" in details
+        assert "start_time" in details
+        assert "latitude" in details
+        assert "longitude" in details
+
+    def test_json_enums_are_strings(self, capsys: pytest.CaptureFixture[str]) -> None:
+        main([str(SAMPLE_LOG), "--json"])
+        out = capsys.readouterr().out
+        details = json.loads(out)["details"]
+        assert isinstance(details["product_type"], str)
+        assert isinstance(details["app_platform"], str)
+
+    def test_json_to_file(self, tmp_path: Path) -> None:
+        out_file = tmp_path / "out.json"
+        main([str(SAMPLE_LOG), "-o", str(out_file)])
+        data = json.loads(out_file.read_text())
+        assert data["version"] == 14
+        assert "details" in data
+
+    def test_json_start_time_is_iso(self, capsys: pytest.CaptureFixture[str]) -> None:
+        main([str(SAMPLE_LOG), "--json"])
+        out = capsys.readouterr().out
+        details = json.loads(out)["details"]
+        # Should be a valid ISO 8601 string
+        assert "2021" in details["start_time"]
+        assert "T" in details["start_time"]
+
+
+class TestStubbedExports:
+    @pytest.mark.parametrize("flag", ["--geojson", "--kml", "--csv"])
+    def test_unimplemented_exports_exit(self, flag: str, tmp_path: Path) -> None:
+        with pytest.raises(SystemExit, match="1"):
+            main([str(SAMPLE_LOG), flag, str(tmp_path / "out")])
+
+    def test_raw_exits(self) -> None:
+        with pytest.raises(SystemExit, match="1"):
+            main([str(SAMPLE_LOG), "--raw"])
+
+
+class TestErrorHandling:
+    def test_missing_file(self) -> None:
+        with pytest.raises(SystemExit):
+            main(["/nonexistent/file.txt"])
+
+    def test_no_args(self) -> None:
+        with pytest.raises(SystemExit):
+            main([])
+
+
+class TestModuleExecution:
+    def test_python_m_invocation(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "-m", "pydjirecord", str(SAMPLE_LOG)],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        assert result.returncode == 0
+        assert "Log version:" in result.stdout
