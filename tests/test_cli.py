@@ -71,7 +71,7 @@ class TestJsonOutput:
 
     def test_json_to_file(self, tmp_path: Path) -> None:
         out_file = tmp_path / "out.json"
-        main([str(SAMPLE_LOG), "-o", str(out_file)])
+        main([str(SAMPLE_LOG), "--json", "-o", str(out_file)])
         data = json.loads(out_file.read_text())
         assert data["version"] == 14
         assert "details" in data
@@ -85,15 +85,31 @@ class TestJsonOutput:
         assert "T" in details["start_time"]
 
 
-class TestStubbedExports:
-    @pytest.mark.parametrize("flag", ["--geojson", "--kml", "--csv"])
-    def test_unimplemented_exports_exit(self, flag: str, tmp_path: Path) -> None:
-        with pytest.raises(SystemExit, match="1"):
-            main([str(SAMPLE_LOG), flag, str(tmp_path / "out")])
+class TestExportsRequireApiKey:
+    """v14 logs require API key for frame-based exports."""
 
-    def test_raw_exits(self) -> None:
+    @pytest.mark.parametrize("flag", ["--geojson", "--kml", "--csv"])
+    def test_exports_exit_without_api_key(self, flag: str) -> None:
         with pytest.raises(SystemExit, match="1"):
-            main([str(SAMPLE_LOG), "--raw"])
+            main([str(SAMPLE_LOG), flag])
+
+
+class TestMutuallyExclusiveFormats:
+    """Only one format flag can be used at a time."""
+
+    @pytest.mark.parametrize(
+        "flags",
+        [
+            ["--json", "--kml"],
+            ["--json", "--geojson"],
+            ["--json", "--csv"],
+            ["--raw", "--kml"],
+            ["--geojson", "--kml"],
+        ],
+    )
+    def test_combined_flags_error(self, flags: list[str]) -> None:
+        with pytest.raises(SystemExit):
+            main([str(SAMPLE_LOG), *flags])
 
 
 class TestErrorHandling:

@@ -18,8 +18,14 @@ class BinaryReader:
     def read_u8(self) -> int:
         return cast("int", struct.unpack("<B", self._read(1))[0])
 
+    def read_i16(self) -> int:
+        return cast("int", struct.unpack("<h", self._read(2))[0])
+
     def read_u16(self) -> int:
         return cast("int", struct.unpack("<H", self._read(2))[0])
+
+    def read_u32(self) -> int:
+        return cast("int", struct.unpack("<I", self._read(4))[0])
 
     def read_i32(self) -> int:
         return cast("int", struct.unpack("<i", self._read(4))[0])

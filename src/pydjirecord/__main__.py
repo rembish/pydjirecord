@@ -3,37 +3,36 @@
 from __future__ import annotations
 
 import argparse
-import dataclasses
-import json
+import os
 import sys
-from datetime import datetime
-from enum import IntEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from .djilog import DJILog
+from .export.csv import export_csv
+from .export.geojson import export_geojson
+from .export.json import export_json
+from .export.kml import export_kml
 
 if TYPE_CHECKING:
+    from .keychain.api import KeychainFeaturePoint
     from .layout.details import Details
 
 
-def _json_default(obj: object) -> Any:
-    """JSON serializer for types not handled by the default encoder."""
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    if isinstance(obj, IntEnum):
-        return obj.name
-    msg = f"Object of type {type(obj).__name__} is not JSON serializable"
-    raise TypeError(msg)
-
-
-def _details_to_dict(details: Details, version: int) -> dict[str, Any]:
-    """Serialize version + details to a JSON-friendly dict."""
-    d = dataclasses.asdict(details)
-    d["start_time"] = details.start_time.isoformat()
-    d["product_type"] = details.product_type.name
-    d["app_platform"] = details.app_platform.name
-    return {"version": version, "details": d}
+def _load_dotenv() -> None:
+    """Load key=value pairs from .env in the current directory, if present."""
+    env_path = Path(".env")
+    if not env_path.is_file():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip("\"'")
+        if key and key not in os.environ:
+            os.environ[key] = value
 
 
 def _format_location(details: Details) -> str:
@@ -97,39 +96,32 @@ def _print_info(log: DJILog) -> None:
     print("\n".join(lines))
 
 
-def _export_json(log: DJILog, output: Path | None) -> None:
-    """Write JSON to *output* file or stdout."""
-    data = _details_to_dict(log.details, log.version)
-    text = json.dumps(data, indent=2, default=_json_default)
-    if output is not None:
-        output.write_text(text + "\n", encoding="utf-8")
-    else:
-        print(text)
-
-
-def _not_implemented(name: str) -> None:
-    print(f"Error: --{name} export requires records/frames (not yet implemented)", file=sys.stderr)
-    sys.exit(1)
+def _get_keychains(log: DJILog, api_key: str | None) -> list[list[KeychainFeaturePoint]] | None:
+    """Fetch keychains for v13+ logs, return None for older versions."""
+    if log.version < 13:
+        return None
+    if not api_key:
+        print("Error: v13+ logs require --api-key or DJI_API_KEY env var for decryption", file=sys.stderr)
+        sys.exit(1)
+    return log.fetch_keychains(api_key)
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the argument parser."""
     parser = argparse.ArgumentParser(
-        prog="pydjirecord",
+        prog="djirecord",
         description="Parse and inspect DJI drone flight log files.",
     )
     parser.add_argument("file", metavar="FILE", type=Path, help="DJI flight log file (.txt)")
 
-    out = parser.add_argument_group("output")
-    out.add_argument("--json", action="store_true", help="output details as JSON to stdout")
-    out.add_argument("-o", "--output", metavar="FILE", type=Path, help="write JSON to FILE")
+    fmt = parser.add_mutually_exclusive_group()
+    fmt.add_argument("--json", action="store_true", help="output as JSON")
+    fmt.add_argument("--raw", action="store_true", help="output raw records as JSON")
+    fmt.add_argument("--geojson", action="store_true", help="output as GeoJSON")
+    fmt.add_argument("--kml", action="store_true", help="output as KML")
+    fmt.add_argument("--csv", action="store_true", help="output as CSV")
 
-    future = parser.add_argument_group("export (requires records/frames)")
-    future.add_argument("--geojson", metavar="FILE", type=Path, help="export GeoJSON track")
-    future.add_argument("--kml", metavar="FILE", type=Path, help="export KML track")
-    future.add_argument("--csv", metavar="FILE", type=Path, help="export CSV telemetry")
-    future.add_argument("--raw", action="store_true", help="output raw records instead of frames")
-
+    parser.add_argument("-o", "--output", metavar="FILE", default="-", help="output file (default: stdout)")
     parser.add_argument("--api-key", metavar="KEY", help="DJI API key for v13+ AES decryption")
 
     return parser
@@ -137,6 +129,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> None:
     """CLI entry point."""
+    _load_dotenv()
+
     parser = build_parser()
     args = parser.parse_args(argv)
 
@@ -148,20 +142,55 @@ def main(argv: list[str] | None = None) -> None:
     data = file_path.read_bytes()
     log = DJILog.from_bytes(data)
 
-    # Handle stubbed exports
-    for flag in ("geojson", "kml", "csv"):
-        if getattr(args, flag) is not None:
-            _not_implemented(flag)
-    if args.raw:
-        _not_implemented("raw")
+    api_key: str | None = args.api_key or os.environ.get("DJI_API_KEY")
+    output_path: str = args.output
 
-    # JSON output
-    if args.json or args.output:
-        _export_json(log, args.output)
+    # No format flag → human-readable info
+    if not (args.json or args.raw or args.geojson or args.kml or args.csv):
+        _print_info(log)
         return
 
-    # Default: human-readable info
-    _print_info(log)
+    # JSON / raw JSON
+    if args.json or args.raw:
+        if api_key or log.version < 13:
+            keychains = _get_keychains(log, api_key)
+            if args.raw:
+                records = log.records(keychains)
+                text = export_json(log, raw_records=records)
+            else:
+                frames = log.frames(keychains)
+                text = export_json(log, frames=frames)
+        else:
+            text = export_json(log)
+        if output_path == "-":
+            print(text)
+        else:
+            Path(output_path).write_text(text + "\n", encoding="utf-8")
+        return
+
+    # Frame-based exports require decryption
+    keychains = _get_keychains(log, api_key)
+    frames = log.frames(keychains)
+
+    if args.kml:
+        # KML uses binary output (XML declaration with encoding)
+        if output_path == "-":
+            export_kml(frames, log.details, sys.stdout.buffer)
+        else:
+            with Path(output_path).open("wb") as fh:
+                export_kml(frames, log.details, fh)
+    elif args.geojson:
+        if output_path == "-":
+            export_geojson(frames, log.details, sys.stdout)
+        else:
+            with Path(output_path).open("w", encoding="utf-8") as fh:
+                export_geojson(frames, log.details, fh)
+    elif args.csv:
+        if output_path == "-":
+            export_csv(frames, log.details, sys.stdout)
+        else:
+            with Path(output_path).open("w", newline="", encoding="utf-8") as fh:
+                export_csv(frames, log.details, fh)
 
 
 if __name__ == "__main__":

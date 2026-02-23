@@ -1,6 +1,8 @@
-"""Tests for the XOR decoder."""
+"""Tests for the XOR and AES decoder."""
 
-from pydjirecord.decoder import xor_decode
+from pydjirecord.decoder import aes_decode, record_decode, xor_decode
+from pydjirecord.keychain import Keychain
+from pydjirecord.keychain.api import KeychainFeaturePoint
 
 
 def test_empty_data() -> None:
@@ -50,3 +52,118 @@ def test_roundtrip_with_known_key() -> None:
     wire = key_byte + bytes(encoded)
     decoded = xor_decode(wire, record_type=record_type)
     assert decoded == original_payload
+
+
+class TestAesDecode:
+    def test_roundtrip(self) -> None:
+        """Encrypt then decrypt with AES-256-CBC should recover plaintext."""
+        from Crypto.Cipher import AES
+        from Crypto.Util.Padding import pad
+
+        key = b"\x01" * 32
+        iv = b"\x02" * 16
+        plaintext = b"Hello AES world!"
+
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+        ciphertext = cipher.encrypt(pad(plaintext, AES.block_size))
+
+        result, next_iv = aes_decode(ciphertext, iv, key)
+        assert result == plaintext
+        assert next_iv == ciphertext[-16:]
+
+    def test_next_iv_is_last_ciphertext_block(self) -> None:
+        from Crypto.Cipher import AES
+        from Crypto.Util.Padding import pad
+
+        key = b"\xaa" * 32
+        iv = b"\xbb" * 16
+        plaintext = b"A" * 48  # 3 blocks
+
+        cipher = AES.new(key, AES.MODE_CBC, iv)
+        ciphertext = cipher.encrypt(pad(plaintext, AES.block_size))
+
+        _, next_iv = aes_decode(ciphertext, iv, key)
+        assert next_iv == ciphertext[-16:]
+
+
+class TestRecordDecode:
+    def test_v6_returns_raw(self) -> None:
+        data = b"\x00\x01\x02\x03"
+        assert record_decode(data, record_type=1, version=6, keychain=None) == data
+
+    def test_v10_xor_only(self) -> None:
+        data = bytes(range(20))
+        result = record_decode(data, record_type=1, version=10, keychain=None)
+        assert result == xor_decode(data, 1)
+
+    def test_v14_plaintext_skips_aes(self) -> None:
+        """Plaintext feature point records (magic 56) skip AES even for v14."""
+        import base64
+
+        key_b64 = base64.b64encode(b"\x00" * 32).decode()
+        iv_b64 = base64.b64encode(b"\x00" * 16).decode()
+        fps = [KeychainFeaturePoint(feature_point=1, aes_key=key_b64, aes_iv=iv_b64)]
+        kc = Keychain.from_feature_points(fps)
+
+        data = bytes(range(20))
+        # record_type=56 (KeyStorage) maps to PLAINTEXT — no AES
+        result = record_decode(data, record_type=56, version=14, keychain=kc)
+        assert result == xor_decode(data, 56)
+
+    def test_v14_aes_strips_last_byte_before_decrypt(self) -> None:
+        """record_decode must strip the last XOR-decoded byte before AES.
+
+        Rust passes (size - 2) to AesDecoder: first byte consumed by XOR,
+        last byte excluded from AES content.  If the last byte is NOT
+        stripped, the data won't be 16-byte aligned and AES will raise.
+        """
+        from Crypto.Cipher import AES
+        from Crypto.Util.Padding import pad
+
+        aes_key = b"\x11" * 32
+        aes_iv = b"\x22" * 16
+
+        # Build a valid AES-CBC ciphertext (must be multiple of 16)
+        inner_plaintext = b"record-payload!!"  # exactly 16 bytes
+        cipher = AES.new(aes_key, AES.MODE_CBC, aes_iv)
+        aes_ciphertext = cipher.encrypt(pad(inner_plaintext, AES.block_size))
+        # aes_ciphertext is 32 bytes (16 plaintext + 16 PKCS7 padding)
+
+        # Simulate what record_decode receives:
+        # After XOR decode, the output is (aes_content || last_byte),
+        # where aes_content must be 16-byte aligned.
+        # So decoded = aes_ciphertext + one_trailing_byte
+        xor_decoded_payload = aes_ciphertext + b"\xff"  # 33 bytes
+
+        # Reverse-engineer the raw wire bytes: xor_decode(raw, type) == xor_decoded_payload
+        # xor_decode strips byte 0 and XORs the rest, so we need to build raw data
+        # such that XOR-decoding produces our desired payload.
+        record_type = 1  # OSD → maps to BASE feature point
+        first_byte = 0x42
+        from pydjirecord.utils import crc64
+
+        seed = (first_byte + record_type) & 0xFF
+        key_input = ((0x123456789ABCDEF0 * first_byte) & 0xFFFFFFFFFFFFFFFF).to_bytes(8, "little")
+        xor_key = crc64(seed, key_input).to_bytes(8, "little")
+
+        encoded = bytearray(len(xor_decoded_payload))
+        for i, b in enumerate(xor_decoded_payload):
+            encoded[i] = b ^ xor_key[i % 8]
+        raw_data = bytes([first_byte]) + bytes(encoded)
+
+        # Set up keychain with our AES key for BASE feature point
+        import base64
+
+        fps = [
+            KeychainFeaturePoint(
+                feature_point=1,
+                aes_key=base64.b64encode(aes_key).decode(),
+                aes_iv=base64.b64encode(aes_iv).decode(),
+            )
+        ]
+        kc = Keychain.from_feature_points(fps)
+
+        # This would raise "Data must be padded to 16 byte boundary"
+        # if the last byte is not stripped before AES decryption.
+        result = record_decode(raw_data, record_type=record_type, version=14, keychain=kc)
+        assert result == inner_plaintext
