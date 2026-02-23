@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
@@ -261,6 +262,10 @@ def _finalize(frame: Frame) -> None:
         osd.y_speed_max = osd.y_speed
     if osd.z_speed_max < osd.z_speed:
         osd.z_speed_max = osd.z_speed
+
+    osd.h_speed = math.sqrt(osd.x_speed**2 + osd.y_speed**2)
+    if osd.h_speed_max < osd.h_speed:
+        osd.h_speed_max = osd.h_speed
 
     # Estimate cell voltages if not provided
     if bat.cell_voltages and bat.cell_voltages[0] == 0.0 and bat.voltage > 0.0:

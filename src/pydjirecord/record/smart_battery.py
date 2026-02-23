@@ -24,7 +24,9 @@ class SmartBattery:
     voltage: float
     percent: int
     low_warning: int
+    low_warning_go_home: int
     serious_low_warning: int
+    serious_low_warning_landing: int
 
     @classmethod
     def from_bytes(cls, data: bytes, version: int = 0) -> SmartBattery:
@@ -44,9 +46,11 @@ class SmartBattery:
 
         bp1 = r.read_u8()
         low_warning = bp1 & 0x7F
+        low_warning_go_home = (bp1 & 0x80) >> 7
 
         bp2 = r.read_u8()
         serious_low_warning = bp2 & 0x7F
+        serious_low_warning_landing = (bp2 & 0x80) >> 7
 
         return cls(
             useful_time=useful_time,
@@ -62,5 +66,7 @@ class SmartBattery:
             voltage=voltage,
             percent=percent,
             low_warning=low_warning,
+            low_warning_go_home=low_warning_go_home,
             serious_low_warning=serious_low_warning,
+            serious_low_warning_landing=serious_low_warning_landing,
         )

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 from pydjirecord.frame import Frame
 from pydjirecord.frame.battery import FrameBattery
 from pydjirecord.frame.builder import _finalize, _reset, records_to_frames
@@ -144,6 +146,42 @@ class TestRecordsToFrames:
         assert "Tip1" in frames[0].app.tip
         # Second frame tip should NOT contain Tip1 (only flight mode change msg)
         assert "Tip1" not in frames[1].app.tip
+
+
+class TestHSpeedComputation:
+    def test_h_speed_computed(self) -> None:
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(record_type=1, data=_make_osd(speed_x=3.0, speed_y=4.0, fly_time=1.0)),
+            Record(record_type=1, data=_make_osd(speed_x=0.0, speed_y=0.0, fly_time=2.0)),
+        ]
+        frames = records_to_frames(records, details)
+        assert len(frames) == 1
+        assert abs(frames[0].osd.h_speed - 5.0) < 0.001  # 3-4-5 triangle
+
+    def test_h_speed_max_tracks_maximum(self) -> None:
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(record_type=1, data=_make_osd(speed_x=3.0, speed_y=4.0, fly_time=1.0)),
+            Record(record_type=1, data=_make_osd(speed_x=1.0, speed_y=1.0, fly_time=2.0)),
+            Record(record_type=1, data=_make_osd(speed_x=0.0, speed_y=0.0, fly_time=3.0)),
+        ]
+        frames = records_to_frames(records, details)
+        assert len(frames) == 2
+        # First frame: h_speed = 5.0
+        assert abs(frames[0].osd.h_speed - 5.0) < 0.001
+        assert abs(frames[0].osd.h_speed_max - 5.0) < 0.001
+        # Second frame: h_speed = sqrt(2) ≈ 1.414, but max carried from first
+        assert abs(frames[1].osd.h_speed - math.sqrt(2)) < 0.001
+        assert abs(frames[1].osd.h_speed_max - 5.0) < 0.001
+
+    def test_finalize_h_speed(self) -> None:
+        frame = Frame()
+        frame.osd.x_speed = 6.0
+        frame.osd.y_speed = 8.0
+        _finalize(frame)
+        assert abs(frame.osd.h_speed - 10.0) < 0.001
+        assert abs(frame.osd.h_speed_max - 10.0) < 0.001
 
 
 class TestFinalize:

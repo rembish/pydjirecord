@@ -75,6 +75,7 @@ class Home:
     is_beginner_mode: bool
     is_ioc_open: bool
     ioc_mode: IOCMode
+    aircraft_head_direction: int
     go_home_height: int
     ioc_course_lock_angle: int
     current_flight_record_index: int
@@ -90,6 +91,7 @@ class Home:
         bp1 = r.read_u8()
         is_home_record = bool(sub_byte_field(bp1, 0x01))
         go_home_mode = GoHomeMode(sub_byte_field(bp1, 0x02))
+        aircraft_head_direction = sub_byte_field(bp1, 0x04)
         is_dynamic_home_point_enabled = bool(sub_byte_field(bp1, 0x08))
         is_near_distance_limit = bool(sub_byte_field(bp1, 0x10))
         is_near_height_limit = bool(sub_byte_field(bp1, 0x20))
@@ -121,6 +123,7 @@ class Home:
             altitude=altitude,
             is_home_record=is_home_record,
             go_home_mode=go_home_mode,
+            aircraft_head_direction=aircraft_head_direction,
             is_dynamic_home_point_enabled=is_dynamic_home_point_enabled,
             is_near_distance_limit=is_near_distance_limit,
             is_near_height_limit=is_near_height_limit,

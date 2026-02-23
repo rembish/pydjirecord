@@ -6,15 +6,19 @@ import struct
 from dataclasses import dataclass
 from typing import Any
 
+from .app_gps import AppGPS
 from .app_serious_warn import AppSeriousWarn
 from .app_tip import AppTip
 from .app_warn import AppWarn
 from .camera import Camera
 from .center_battery import CenterBattery
+from .component_serial import ComponentSerial
 from .custom import Custom
+from .firmware import Firmware
 from .gimbal import Gimbal
 from .home import Home
 from .key_storage import KeyStorage
+from .mc_params import MCParams
 from .ofdm import OFDM
 from .osd import OSD
 from .rc import RC
@@ -33,15 +37,19 @@ __all__ = [
     "OFDM",
     "OSD",
     "RC",
+    "AppGPS",
     "AppSeriousWarn",
     "AppTip",
     "AppWarn",
     "Camera",
     "CenterBattery",
+    "ComponentSerial",
     "Custom",
+    "Firmware",
     "Gimbal",
     "Home",
     "KeyStorage",
+    "MCParams",
     "RCDisplayField",
     "Record",
     "Recover",
@@ -128,12 +136,20 @@ def parse_record(
             parsed = AppWarn.from_bytes(data)
         elif magic == 13:
             parsed = Recover.from_bytes(data, version)
+        elif magic == 14:
+            parsed = AppGPS.from_bytes(data)
+        elif magic == 15:
+            parsed = Firmware.from_bytes(data)
+        elif magic == 19:
+            parsed = MCParams.from_bytes(data)
         elif magic == 22:
             parsed = parse_smart_battery_group(data)
         elif magic == 24:
             parsed = AppSeriousWarn.from_bytes(data)
         elif magic == 25:
             parsed = Camera.from_bytes(data)
+        elif magic == 40:
+            parsed = ComponentSerial.from_bytes(data)
         elif magic == 49:
             parsed = OFDM.from_bytes(data)
         elif magic == 50:

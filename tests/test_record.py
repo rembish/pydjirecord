@@ -6,16 +6,20 @@ import math
 import struct
 
 from pydjirecord.record import Record, parse_record
+from pydjirecord.record.app_gps import AppGPS
 from pydjirecord.record.app_tip import AppTip
 from pydjirecord.record.app_warn import AppWarn
 from pydjirecord.record.camera import Camera, SDCardState
 from pydjirecord.record.center_battery import CenterBattery
+from pydjirecord.record.component_serial import ComponentSerial, ComponentType
 from pydjirecord.record.custom import Custom
+from pydjirecord.record.firmware import Firmware, SenderType
 from pydjirecord.record.gimbal import Gimbal, GimbalMode
 from pydjirecord.record.home import (
     Home,
 )
 from pydjirecord.record.key_storage import KeyStorage
+from pydjirecord.record.mc_params import FailSafeProtectionType, MCParams
 from pydjirecord.record.ofdm import OFDM
 from pydjirecord.record.osd import (
     OSD,
@@ -26,6 +30,7 @@ from pydjirecord.record.osd import (
 )
 from pydjirecord.record.rc import RC
 from pydjirecord.record.rc_display_field import RCDisplayField
+from pydjirecord.record.smart_battery import SmartBattery
 
 
 class TestOSD:
@@ -245,6 +250,145 @@ class TestRCDisplayField:
         rc = RCDisplayField.from_bytes(bytes(buf))
         assert rc.aileron == 1024
         assert rc.throttle == 1500
+
+
+class TestAppGPS:
+    def test_basic_parse(self) -> None:
+        buf = struct.pack("<dd", 19.82, 41.33)  # longitude, latitude
+        gps = AppGPS.from_bytes(buf)
+        assert abs(gps.longitude - 19.82) < 0.001
+        assert abs(gps.latitude - 41.33) < 0.001
+
+    def test_dispatch(self) -> None:
+        buf = struct.pack("<dd", 19.82, 41.33)
+        record = parse_record(14, buf, version=14)
+        assert isinstance(record.data, AppGPS)
+
+
+class TestFirmware:
+    def test_basic_parse(self) -> None:
+        buf = struct.pack("<BB", 3, 0) + bytes([1, 2, 3, 0])  # MC, sub=0, ver=1.2.3
+        fw = Firmware.from_bytes(buf)
+        assert fw.sender_type == SenderType.MC
+        assert fw.sub_sender_type == 0
+        assert fw.version == "1.2.3"
+
+    def test_dispatch(self) -> None:
+        buf = struct.pack("<BB", 1, 0) + bytes([4, 5, 6, 0])
+        record = parse_record(15, buf, version=14)
+        assert isinstance(record.data, Firmware)
+
+
+class TestMCParams:
+    def test_basic_parse(self) -> None:
+        buf = struct.pack("<BB", 2, 0x07)  # GO_HOME, all flags set
+        mc = MCParams.from_bytes(buf)
+        assert mc.fail_safe_protection == FailSafeProtectionType.GO_HOME
+        assert mc.mvo_func_enabled is True
+        assert mc.avoid_obstacle_enabled is True
+        assert mc.user_avoid_enabled is True
+
+    def test_flags_off(self) -> None:
+        buf = struct.pack("<BB", 0, 0x00)  # HOVER, no flags
+        mc = MCParams.from_bytes(buf)
+        assert mc.fail_safe_protection == FailSafeProtectionType.HOVER
+        assert mc.mvo_func_enabled is False
+        assert mc.avoid_obstacle_enabled is False
+        assert mc.user_avoid_enabled is False
+
+    def test_dispatch(self) -> None:
+        buf = struct.pack("<BB", 0, 0)
+        record = parse_record(19, buf, version=14)
+        assert isinstance(record.data, MCParams)
+
+
+class TestComponentSerial:
+    def test_basic_parse(self) -> None:
+        serial_bytes = b"ABC123\x00"
+        buf = struct.pack("<HB", 2, len(serial_bytes)) + serial_bytes
+        cs = ComponentSerial.from_bytes(buf)
+        assert cs.component_type == ComponentType.AIRCRAFT
+        assert cs.serial == "ABC123"
+
+    def test_empty_serial(self) -> None:
+        buf = struct.pack("<HB", 1, 1) + b"\x00"
+        cs = ComponentSerial.from_bytes(buf)
+        assert cs.component_type == ComponentType.CAMERA
+        assert cs.serial == ""
+
+    def test_dispatch(self) -> None:
+        buf = struct.pack("<HB", 3, 2) + b"RC"
+        record = parse_record(40, buf, version=14)
+        assert isinstance(record.data, ComponentSerial)
+
+
+class TestSmartBatteryFields:
+    def _build_smart_battery_bytes(self, bp1: int = 0, bp2: int = 0) -> bytes:
+        buf = bytearray()
+        buf += struct.pack("<H", 100)  # useful_time
+        buf += struct.pack("<H", 200)  # go_home_time
+        buf += struct.pack("<H", 300)  # land_time
+        buf += struct.pack("<H", 30)  # go_home_battery
+        buf += struct.pack("<H", 20)  # land_battery
+        buf += struct.pack("<f", 500.0)  # safe_fly_radius
+        buf += struct.pack("<f", 10.0)  # volume_consume
+        buf += struct.pack("<I", 0)  # status
+        buf += struct.pack("<B", 0)  # go_home_status
+        buf += struct.pack("<B", 10)  # go_home_countdown
+        buf += struct.pack("<H", 11400)  # voltage = 11.4V
+        buf += struct.pack("<B", 75)  # percent
+        buf += struct.pack("<B", bp1)  # bitpack1
+        buf += struct.pack("<B", bp2)  # bitpack2
+        return bytes(buf)
+
+    def test_low_warning_go_home(self) -> None:
+        data = self._build_smart_battery_bytes(bp1=0x80 | 10)
+        sb = SmartBattery.from_bytes(data)
+        assert sb.low_warning == 10
+        assert sb.low_warning_go_home == 1
+
+    def test_serious_low_warning_landing(self) -> None:
+        data = self._build_smart_battery_bytes(bp2=0x80 | 5)
+        sb = SmartBattery.from_bytes(data)
+        assert sb.serious_low_warning == 5
+        assert sb.serious_low_warning_landing == 1
+
+    def test_no_warning_flags(self) -> None:
+        data = self._build_smart_battery_bytes(bp1=10, bp2=5)
+        sb = SmartBattery.from_bytes(data)
+        assert sb.low_warning_go_home == 0
+        assert sb.serious_low_warning_landing == 0
+
+
+class TestHomeAircraftHeadDirection:
+    def test_aircraft_head_direction(self) -> None:
+        buf = bytearray()
+        buf += struct.pack("<d", math.pi / 4)  # longitude
+        buf += struct.pack("<d", math.pi / 6)  # latitude
+        buf += struct.pack("<f", 500.0)  # altitude raw
+        # bitpack1: is_home_record=1, go_home_mode=0, aircraft_head_direction=1
+        buf += struct.pack("<B", 0x01 | 0x04)
+        buf += struct.pack("<B", 0)  # bitpack2
+        buf += struct.pack("<H", 120)  # go_home_height
+        buf += struct.pack("<h", 0)  # ioc_course_lock_angle
+        buf += struct.pack("<BBH", 0, 0, 0)  # sd_state, percent, left_time
+        buf += struct.pack("<H", 0)  # current_flight_record_index
+        home = Home.from_bytes(bytes(buf), version=6)
+        assert home.aircraft_head_direction == 1
+
+    def test_aircraft_head_direction_zero(self) -> None:
+        buf = bytearray()
+        buf += struct.pack("<d", math.pi / 4)
+        buf += struct.pack("<d", math.pi / 6)
+        buf += struct.pack("<f", 500.0)
+        buf += struct.pack("<B", 0x01)  # no 0x04 bit
+        buf += struct.pack("<B", 0)
+        buf += struct.pack("<H", 120)
+        buf += struct.pack("<h", 0)
+        buf += struct.pack("<BBH", 0, 0, 0)
+        buf += struct.pack("<H", 0)
+        home = Home.from_bytes(bytes(buf), version=6)
+        assert home.aircraft_head_direction == 0
 
 
 class TestParseRecord:

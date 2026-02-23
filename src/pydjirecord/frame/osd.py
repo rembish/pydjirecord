@@ -36,6 +36,8 @@ class FrameOSD:
     y_speed_max: float = 0.0
     z_speed: float = 0.0
     z_speed_max: float = 0.0
+    h_speed: float = 0.0
+    h_speed_max: float = 0.0
     pitch: float = 0.0
     roll: float = 0.0
     yaw: float = 0.0
