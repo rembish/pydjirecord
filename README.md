@@ -128,6 +128,25 @@ records = log.records(keychains)
 | 7-12    | XOR (CRC64-derived key) |
 | 13-14   | XOR + AES-256-CBC (per-feature-point keys from DJI API) |
 
+## Status
+
+This is a work-in-progress port. The core parsing pipeline, frame builder, and all export formats work. The following parts from the upstream Rust [dji-log-parser](https://github.com/lvauvillier/dji-log-parser) are not yet implemented:
+
+**Record types not yet parsed** (returned as raw bytes):
+
+- Deform (6) — arm fold/stretch state
+- RCGPS (11) — remote controller GPS
+- VirtualStick (33) — virtual stick flight control inputs
+
+**CLI features**:
+
+- Image/thumbnail extraction with EXIF geotagging (`--images`, `--thumbnails`)
+- Custom keychain API overrides (`--api-custom-department`, `--api-custom-version`)
+
+**Testing coverage**:
+
+The author only has format version 14 logs (Mavic Air 2). Older format versions (v1-12) are tested only through crafted binary data in unit tests, not with real flight logs. **If you have DJI flight logs from older drones or older DJI app versions (format versions 1 through 12), please consider contributing them** — even a single short flight per version would help verify the parsing and decryption paths end-to-end.
+
 ## Development
 
 ```bash
