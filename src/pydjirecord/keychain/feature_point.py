@@ -75,11 +75,15 @@ def feature_point_for_record(record_type: int, version: int) -> FeaturePoint:
         return FeaturePoint.WAYPOINT
 
     # Agriculture
-    if record_type in (21, 41, 43, 44, 46, 47, 48, 49):
+    if record_type in (21, 41, 43, 44, 45, 46, 47, 48):
         return FeaturePoint.AGRICULTURE
 
-    # RC-only records (always RC regardless of version)
-    if record_type in (45, 62):
+    # AirLink — type 49 is AgricultureOFDMRadioSignalPush (maps to AirLink, not Agriculture)
+    if record_type == 49:
+        return FeaturePoint.AIR_LINK
+
+    # RC display field (always RC regardless of version)
+    if record_type == 62:
         return FeaturePoint.RC
 
     # DJI Fly Custom (app messages)
@@ -101,16 +105,20 @@ def feature_point_for_record(record_type: int, version: int) -> FeaturePoint:
         if record_type in (7, 8, 22):
             return FeaturePoint.BATTERY
         # Fly Safe
-        if record_type in (28, 51, 52, 53):
+        if record_type in (28, 51, 52):
             return FeaturePoint.FLY_SAFE
 
+    # Flight Hub — FlightHubInfoDataType in both v13 and v14
+    if record_type == 53:
+        return FeaturePoint.FLIGHT_HUB
+
     # After Sales
-    if record_type in (12, 16, 19, 22, 23, 26, 27, 28, 40, 51, 52, 53, 93, 102, 103, 113):
+    if record_type in (12, 16, 19, 22, 23, 26, 27, 28, 51, 52, 93, 102, 103, 113):
         return FeaturePoint.AFTER_SALES
 
     # Base — default for OSD(1), Home(2), Gimbal(3), RC(4), CenterBattery(7),
-    # SmartBattery(8), Camera(25), and others
-    if record_type in (1, 2, 3, 4, 6, 7, 8, 13, 14, 15, 25, 40, 58, 59, 63):
+    # SmartBattery(8), RC GPS(11), Camera(25), JoyStick(29), VirtualStick(33), and others
+    if record_type in (1, 2, 3, 4, 6, 7, 8, 11, 13, 14, 15, 25, 29, 33, 40, 58, 59, 63):
         return FeaturePoint.BASE
 
     # Default to Plaintext for unknown record types

@@ -16,8 +16,7 @@ from pydjirecord.frame import Frame
 from pydjirecord.frame.battery import FrameBattery
 from pydjirecord.layout.details import Details, ProductType
 
-EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
-SAMPLE_LOG = EXAMPLES_DIR / "DJIFlightRecord_2021-05-25_[18-31-35].txt"
+SAMPLE_LOG = Path(__file__).parent / "fixtures" / "minimal_v14.txt"
 
 
 def _make_frame(lat: float = 41.3, lon: float = 19.8, alt: float = 100.0) -> Frame:

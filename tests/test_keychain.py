@@ -39,6 +39,43 @@ class TestFeaturePointMapping:
         assert feature_point_for_record(9, 14) == FeaturePoint.DJI_FLY_CUSTOM
         assert feature_point_for_record(10, 14) == FeaturePoint.DJI_FLY_CUSTOM
 
+    # Bug fixes verified against C++ flight_record_feature_point_map.cpp
+
+    def test_type49_airlink_not_agriculture(self) -> None:
+        """AgricultureOFDMRadioSignalPush(49) → AirLinkFeature in both versions."""
+        assert feature_point_for_record(49, 13) == FeaturePoint.AIR_LINK
+        assert feature_point_for_record(49, 14) == FeaturePoint.AIR_LINK
+
+    def test_type45_agriculture_not_rc(self) -> None:
+        """RTKDifferenceDataType(45) → AgricultureFeature in both versions."""
+        assert feature_point_for_record(45, 13) == FeaturePoint.AGRICULTURE
+        assert feature_point_for_record(45, 14) == FeaturePoint.AGRICULTURE
+
+    def test_type53_flight_hub(self) -> None:
+        """FlightHubInfoDataType(53) → FlightHubFeature in both versions."""
+        assert feature_point_for_record(53, 13) == FeaturePoint.FLIGHT_HUB
+        assert feature_point_for_record(53, 14) == FeaturePoint.FLIGHT_HUB
+
+    def test_type11_v13_base_v14_rc(self) -> None:
+        """RCPushGPSFlightRecordDataType(11): v13→Base, v14→RC."""
+        assert feature_point_for_record(11, 13) == FeaturePoint.BASE
+        assert feature_point_for_record(11, 14) == FeaturePoint.RC
+
+    def test_type29_v13_base_v14_rc(self) -> None:
+        """AppSpecialControlJoyStickDataType(29): v13→Base, v14→RC."""
+        assert feature_point_for_record(29, 13) == FeaturePoint.BASE
+        assert feature_point_for_record(29, 14) == FeaturePoint.RC
+
+    def test_type33_v13_base_v14_rc(self) -> None:
+        """AppVirtualStickDataType(33): v13→Base, v14→RC."""
+        assert feature_point_for_record(33, 13) == FeaturePoint.BASE
+        assert feature_point_for_record(33, 14) == FeaturePoint.RC
+
+    def test_type40_base_not_after_sales(self) -> None:
+        """HealthGroupDataType(40) → BaseFeature in both versions."""
+        assert feature_point_for_record(40, 13) == FeaturePoint.BASE
+        assert feature_point_for_record(40, 14) == FeaturePoint.BASE
+
 
 class TestFeaturePointEnum:
     def test_known_values(self) -> None:

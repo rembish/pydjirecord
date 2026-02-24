@@ -68,7 +68,7 @@ RECORD_TYPES: dict[int, str] = {
     3: "Gimbal",
     4: "RC",
     5: "Custom",
-    6: "Deform",
+    6: "MCTripodState",
     7: "CenterBattery",
     8: "SmartBattery",
     9: "AppTip",

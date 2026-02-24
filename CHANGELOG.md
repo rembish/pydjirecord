@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-02-24
+
+### Fixed
+
+- Feature point mapping bugs verified against C++ `flight_record_feature_point_map.cpp`:
+  - Type 49 (`AgricultureOFDMRadioSignalPush`) now maps to `AIR_LINK` instead of `AGRICULTURE`
+  - Type 45 (`RTKDifferenceDataType`) now maps to `AGRICULTURE` instead of `RC`
+  - Type 53 (`FlightHubInfoDataType`) now maps to `FLIGHT_HUB` in all versions instead of `FLY_SAFE`/`AFTER_SALES`
+  - Types 11, 29, 33 now map to `BASE` for v13 logs (previously fell through to `PLAINTEXT`, breaking AES decryption)
+  - Type 40 (`HealthGroupDataType`) now correctly maps to `BASE` (was shadowed by `AFTER_SALES`)
+- Record type 6 renamed from `"Deform"` to `"MCTripodState"` to match C++ enum name
+
+### Changed
+
+- Test fixtures no longer depend on a personal example file; a minimal valid v14 binary is now generated programmatically in `tests/fixtures/`
+
 ## [0.3.0] - 2026-02-23
 
 ### Added

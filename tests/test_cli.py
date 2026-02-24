@@ -11,8 +11,7 @@ import pytest
 
 from pydjirecord.__main__ import main
 
-EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
-SAMPLE_LOG = EXAMPLES_DIR / "DJIFlightRecord_2021-05-25_[18-31-35].txt"
+SAMPLE_LOG = Path(__file__).parent / "fixtures" / "minimal_v14.txt"
 
 
 class TestInfoOutput:
