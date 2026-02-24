@@ -128,6 +128,35 @@ for frame in frames:
 records = log.records(keychains)
 ```
 
+### Accurate flight statistics
+
+Several header fields (`capture_num`, `video_time`, `total_distance`) are unreliable. When you have decrypted frames, use the computed values instead:
+
+```python
+from pydjirecord import DJILog
+from pydjirecord.frame.details import FrameDetails
+from pydjirecord.frame.builder import compute_photo_num, compute_video_time
+
+data = open("flight.txt", "rb").read()
+log = DJILog.from_bytes(data)
+keychains = log.fetch_keychains("YOUR_API_KEY") if log.version >= 13 else None
+frames = log.frames(keychains)
+
+# Accurate photo count (header is always 0 for DJI Fly logs)
+photos = compute_photo_num(frames)
+
+# Accurate video duration in seconds (header is off by up to 100x)
+video_seconds = compute_video_time(frames)
+
+# Accurate total distance in metres (header can carry stale values)
+distance = frames[-1].osd.cumulative_distance if frames else 0.0
+
+# FrameDetails bundles all the corrected values for export
+details = FrameDetails.from_details(log.details, frames)
+print(details.photo_num)    # computed from remain_photo_num delta
+print(details.video_time)   # computed from record_time segments
+```
+
 ## Known Limitations
 
 ### Header field caveats
