@@ -25,6 +25,7 @@ from .rc import RC
 from .rc_display_field import RCDisplayField
 from .rc_gps import RCGPS, RCGPSTime
 from .recover import Recover
+from .virtual_stick import VirtualStick
 from .smart_battery import SmartBattery
 from .smart_battery_group import (
     SmartBatteryDynamic,
@@ -55,6 +56,7 @@ __all__ = [
     "RCDisplayField",
     "RCGPSTime",
     "Record",
+    "VirtualStick",
     "Recover",
     "SmartBattery",
     "SmartBatteryDynamic",
@@ -153,6 +155,8 @@ def parse_record(
             parsed = AppSeriousWarn.from_bytes(data)
         elif magic == 25:
             parsed = Camera.from_bytes(data)
+        elif magic == 33:
+            parsed = VirtualStick.from_bytes(data)
         elif magic == 40:
             parsed = ComponentSerial.from_bytes(data)
         elif magic == 49:
@@ -166,7 +170,7 @@ def parse_record(
             parsed = RCDisplayField.from_bytes(data)
         else:
             parsed = data
-    except (EOFError, struct.error, ValueError, IndexError):
+    except (EOFError, struct.error, ValueError, IndexError, ImportError):
         parsed = data
 
     return Record(record_type=magic, data=parsed)

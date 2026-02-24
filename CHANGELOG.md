@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-02-24
+
+### Added
+
+- Record type 33 (`VirtualStick`) parser — decodes the protobuf-encoded
+  `VirtualStickFlightControlData` message (pitch, roll, yaw, verticalThrottle as
+  floats; verticalControlMode, rollPitchControlMode, yawControlMode,
+  rollPitchCoordinateSystem as int32). Requires the optional `protobuf` extra
+  (`pip install 'pydjirecord[proto]'`); without it, type 33 records are returned
+  as raw bytes.
+- `[proto]` optional dependency group in `pyproject.toml` (`protobuf>=4.21`)
+
 ## [0.5.0] - 2026-02-24
 
 ### Added

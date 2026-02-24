@@ -5,6 +5,8 @@ from __future__ import annotations
 import math
 import struct
 
+import pytest
+
 from pydjirecord.record import Record, parse_record
 from pydjirecord.record.rc_gps import RCGPS, RCGPSTime
 from pydjirecord.record.app_gps import AppGPS
@@ -453,6 +455,99 @@ class TestRCGPS:
         record = parse_record(11, data, version=14)
         assert isinstance(record.data, RCGPS)
         assert record.record_type == 11
+
+
+class TestVirtualStick:
+    """Tests for VirtualStick (type 33) – requires protobuf package."""
+
+    @staticmethod
+    def _make_vs_bytes(
+        pitch: float = 0.0,
+        roll: float = 0.0,
+        yaw: float = 0.0,
+        vertical_throttle: float = 0.0,
+        vertical_control_mode: int = 0,
+        roll_pitch_control_mode: int = 0,
+        yaw_control_mode: int = 0,
+        roll_pitch_coordinate_system: int = 0,
+    ) -> bytes:
+        """Build a protobuf-encoded VirtualStickFlightControlData binary."""
+        pytest.importorskip("google.protobuf")
+
+        def _varint(n: int) -> bytes:
+            out = []
+            while True:
+                b = n & 0x7F
+                n >>= 7
+                out.append(b | (0x80 if n else 0))
+                if not n:
+                    break
+            return bytes(out)
+
+        buf = b""
+        for field_num, val in enumerate([pitch, roll, yaw, vertical_throttle], 1):
+            buf += _varint((field_num << 3) | 5) + struct.pack("<f", val)
+        for field_num, val in enumerate(
+            [vertical_control_mode, roll_pitch_control_mode, yaw_control_mode, roll_pitch_coordinate_system], 5
+        ):
+            buf += _varint((field_num << 3) | 0) + _varint(val)
+        return buf
+
+    def test_basic_parse(self) -> None:
+        pytest.importorskip("google.protobuf")
+        from pydjirecord.record.virtual_stick import VirtualStick
+
+        data = self._make_vs_bytes(pitch=1.5, roll=-0.3, yaw=0.7, vertical_throttle=0.5)
+        vs = VirtualStick.from_bytes(data)
+        assert abs(vs.pitch - 1.5) < 1e-5
+        assert abs(vs.roll - (-0.3)) < 1e-5
+        assert abs(vs.yaw - 0.7) < 1e-5
+        assert abs(vs.vertical_throttle - 0.5) < 1e-5
+
+    def test_control_mode_fields(self) -> None:
+        pytest.importorskip("google.protobuf")
+        from pydjirecord.record.virtual_stick import VirtualStick
+
+        data = self._make_vs_bytes(
+            vertical_control_mode=1,
+            roll_pitch_control_mode=2,
+            yaw_control_mode=0,
+            roll_pitch_coordinate_system=1,
+        )
+        vs = VirtualStick.from_bytes(data)
+        assert vs.vertical_control_mode == 1
+        assert vs.roll_pitch_control_mode == 2
+        assert vs.yaw_control_mode == 0
+        assert vs.roll_pitch_coordinate_system == 1
+
+    def test_defaults_for_missing_fields(self) -> None:
+        pytest.importorskip("google.protobuf")
+        from pydjirecord.record.virtual_stick import VirtualStick
+
+        # Empty payload → all fields default to 0
+        vs = VirtualStick.from_bytes(b"")
+        assert vs.pitch == 0.0
+        assert vs.roll == 0.0
+        assert vs.vertical_control_mode == 0
+
+    def test_dispatch(self) -> None:
+        pytest.importorskip("google.protobuf")
+        from pydjirecord.record.virtual_stick import VirtualStick
+
+        data = self._make_vs_bytes(pitch=1.0)
+        record = parse_record(33, data, version=14)
+        assert isinstance(record.data, VirtualStick)
+        assert record.record_type == 33
+
+    def test_dispatch_without_protobuf_returns_bytes(self) -> None:
+        """When protobuf is not installed, type 33 falls back to raw bytes."""
+        import unittest.mock as mock
+
+        from pydjirecord.record import virtual_stick
+
+        with mock.patch.object(virtual_stick, "_PROTOBUF_AVAILABLE", False):
+            record = parse_record(33, b"\x0d\x00\x00\xc0\x3f", version=14)
+        assert isinstance(record.data, bytes)
 
 
 class TestParseRecord:
