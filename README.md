@@ -152,7 +152,8 @@ In **air-gapped or network-restricted environments** (corporate firewalls, secur
 
 - `log.details` (the unencrypted header) is still fully readable.
 - `log.version`, `log.details.aircraft_name`, `log.details.start_time`, etc. work without a network call.
-- Frame-level telemetry (`log.frames(keychains)`) and all export formats (`--json`, `--csv`, `--geojson`, `--kml`, `--raw`) require the decryption keys and will fail without network access.
+- `djirecord flight.txt --json` works without a key and returns a details-only JSON object (no frame data).
+- Frame-level telemetry and the frame-bearing export formats (`--raw`, `--csv`, `--geojson`, `--kml`, and `--json` with frames) require the decryption keys and will fail without network access.
 
 ## Encryption
 
