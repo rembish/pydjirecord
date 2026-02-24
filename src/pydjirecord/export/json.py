@@ -100,7 +100,7 @@ def export_json(
             "records": records_out,
         }
     elif frames is not None:
-        frame_details = FrameDetails.from_details(log.details)
+        frame_details = FrameDetails.from_details(log.details, frames)
         data = {
             "version": log.version,
             "details": _dataclass_to_dict(frame_details),

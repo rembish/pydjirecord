@@ -11,7 +11,7 @@ from pydjirecord.record import Record, parse_record
 from pydjirecord.record.app_gps import AppGPS
 from pydjirecord.record.app_tip import AppTip
 from pydjirecord.record.app_warn import AppWarn
-from pydjirecord.record.camera import Camera, SDCardState
+from pydjirecord.record.camera import Camera, CameraWorkMode, SDCardState
 from pydjirecord.record.center_battery import CenterBattery
 from pydjirecord.record.component_serial import ComponentSerial, ComponentType
 from pydjirecord.record.custom import Custom
@@ -199,6 +199,48 @@ class TestCamera:
         assert cam.is_recording is True
         assert cam.has_sd_card is True
         assert cam.sd_card_state == SDCardState.NORMAL
+        # Short record → extended fields default to 0
+        assert cam.record_time == 0
+        assert cam.work_mode == CameraWorkMode.CAPTURE
+
+    def test_full_camera_parse(self) -> None:
+        """Parse a full 24-byte Camera record with all extended fields."""
+        bp1 = 1 << 6  # is_recording
+        bp2 = 0x02  # has_sd_card
+        bp3 = 0x00
+        bp4 = 0x00
+        work_mode = 1  # RECORDING
+        sd_total = 32000  # MB
+        sd_remain = 16000  # MB
+        remain_photos = 500
+        remain_video = 3600  # seconds
+        record_time = 150  # seconds
+        camera_type = 3
+        buf = struct.pack(
+            "<BBBBB I I I I H B",
+            bp1,
+            bp2,
+            bp3,
+            bp4,
+            work_mode,
+            sd_total,
+            sd_remain,
+            remain_photos,
+            remain_video,
+            record_time,
+            camera_type,
+        )
+        assert len(buf) == 24
+        cam = Camera.from_bytes(buf)
+        assert cam.is_recording is True
+        assert cam.has_sd_card is True
+        assert cam.work_mode == CameraWorkMode.RECORDING
+        assert cam.sd_card_total_capacity == 32000
+        assert cam.sd_card_remain_capacity == 16000
+        assert cam.remain_photo_num == 500
+        assert cam.remain_video_timer == 3600
+        assert cam.record_time == 150
+        assert cam.camera_type == 3
 
 
 class TestCustom:

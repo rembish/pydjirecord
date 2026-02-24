@@ -17,3 +17,4 @@ class FrameCamera:
     is_video: bool = False
     sd_card_is_inserted: bool = False
     sd_card_state: SDCardState | None = None
+    record_time: int = 0

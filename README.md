@@ -140,7 +140,7 @@ The `Details` header block is readable without decryption. Most fields are relia
 | `details.max_height` | Reliable | Matches frame-computed maximum within 1-2 m in all tested logs. |
 | `details.max_horizontal_speed` | Reliable | Matches frame-computed maximum in all tested logs. |
 | `details.capture_num` | Broken | Always 0 for DJI Fly app logs. Use `frame.camera.is_photo` per frame instead (requires decryption). |
-| `details.video_time` | Unreliable | Not per-flight recording duration. The ratio to actual in-frame recording time ranges from 1x to over 100x with no consistent unit. Use `frame.camera.is_video` per frame instead (requires decryption). |
+| `details.video_time` | Unreliable | Not per-flight recording duration. The ratio to actual in-frame recording time ranges from 1x to over 100x with no consistent unit. When frames are available, `FrameDetails.video_time` is computed from Camera `record_time` segments and is accurate. |
 
 ### Network access required for decryption
 

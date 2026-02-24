@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.4] - 2026-02-24
+
+### Added
+
+- Full 24-byte Camera record parser: `work_mode`, `sd_card_total_capacity`,
+  `sd_card_remain_capacity`, `remain_photo_num`, `remain_video_timer`,
+  `record_time`, and `camera_type` fields (guarded for short records).
+- `FrameCamera.record_time` — per-frame elapsed recording time in seconds.
+- `compute_video_time(frames)` in `frame.builder` — computes accurate total
+  video recording duration by summing max `record_time` per recording segment.
+- `FrameDetails.video_time` now computed from Camera `record_time` segments
+  when frames are available, replacing the unreliable header value (which was
+  off by 1x–118x in tested logs).
+- Tests for extended Camera fields and video_time segment computation.
+
+### Changed
+
+- `FrameDetails.video_time` type changed from `int` to `float` for
+  consistency with `total_time`.
+- `FrameDetails.from_details()` accepts an optional `frames` parameter to
+  compute accurate `video_time` from decoded Camera records.
+
 ## [0.7.3] - 2026-02-24
 
 ### Added

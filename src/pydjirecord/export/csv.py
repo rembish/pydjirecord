@@ -35,7 +35,7 @@ def export_csv(frames: list[Frame], details: Details, output: TextIO = sys.stdou
     if not frames:
         return
 
-    frame_details = FrameDetails.from_details(details)
+    frame_details = FrameDetails.from_details(details, frames)
 
     # Determine cell count from first frame
     cell_num = frames[0].battery.cell_num if frames else 0

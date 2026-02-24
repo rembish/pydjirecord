@@ -6,10 +6,11 @@ import math
 
 from pydjirecord.frame import Frame
 from pydjirecord.frame.battery import FrameBattery
-from pydjirecord.frame.builder import _finalize, _reset, records_to_frames
+from pydjirecord.frame.builder import _finalize, _reset, compute_video_time, records_to_frames
 from pydjirecord.layout.details import Details, ProductType
 from pydjirecord.record import Record
 from pydjirecord.record.app_tip import AppTip
+from pydjirecord.record.camera import Camera, CameraWorkMode, SDCardState
 from pydjirecord.record.gimbal import Gimbal, GimbalMode
 from pydjirecord.record.osd import (
     OSD,
@@ -320,3 +321,89 @@ class TestReset:
         _reset(frame)
         assert frame.app.tip == ""
         assert frame.app.warn == ""
+
+
+def _make_camera(*, is_recording: bool = False, record_time: int = 0) -> Camera:
+    """Build a Camera record with the given recording state and record_time."""
+    return Camera(
+        is_shooting_single_photo=False,
+        is_recording=is_recording,
+        has_sd_card=True,
+        sd_card_state=SDCardState.NORMAL,
+        work_mode=CameraWorkMode.RECORDING if is_recording else CameraWorkMode.CAPTURE,
+        record_time=record_time,
+    )
+
+
+class TestVideoTime:
+    def test_no_recording_zero_video_time(self) -> None:
+        """No recording segments → video_time is 0."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(record_type=4, data=_make_camera(is_recording=False, record_time=0)),
+            Record(record_type=1, data=_make_osd(fly_time=1.0)),
+            Record(record_type=1, data=_make_osd(fly_time=2.0)),
+        ]
+        frames = records_to_frames(records, details)
+        assert compute_video_time(frames) == 0.0
+
+    def test_single_recording_segment(self) -> None:
+        """One recording segment: max record_time is the video duration."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(record_type=4, data=_make_camera(is_recording=True, record_time=0)),
+            Record(record_type=1, data=_make_osd(fly_time=1.0)),
+            Record(record_type=4, data=_make_camera(is_recording=True, record_time=10)),
+            Record(record_type=1, data=_make_osd(fly_time=2.0)),
+            Record(record_type=4, data=_make_camera(is_recording=True, record_time=20)),
+            Record(record_type=1, data=_make_osd(fly_time=3.0)),
+            Record(record_type=4, data=_make_camera(is_recording=False, record_time=0)),
+            Record(record_type=1, data=_make_osd(fly_time=4.0)),
+        ]
+        frames = records_to_frames(records, details)
+        assert compute_video_time(frames) == 20.0
+
+    def test_two_recording_segments(self) -> None:
+        """Two segments: sum of max record_time from each."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            # Segment 1: record_time goes 0 → 15
+            Record(record_type=4, data=_make_camera(is_recording=True, record_time=0)),
+            Record(record_type=1, data=_make_osd(fly_time=1.0)),
+            Record(record_type=4, data=_make_camera(is_recording=True, record_time=15)),
+            Record(record_type=1, data=_make_osd(fly_time=2.0)),
+            # Gap: not recording
+            Record(record_type=4, data=_make_camera(is_recording=False, record_time=0)),
+            Record(record_type=1, data=_make_osd(fly_time=3.0)),
+            # Segment 2: record_time goes 0 → 30
+            Record(record_type=4, data=_make_camera(is_recording=True, record_time=0)),
+            Record(record_type=1, data=_make_osd(fly_time=4.0)),
+            Record(record_type=4, data=_make_camera(is_recording=True, record_time=30)),
+            Record(record_type=1, data=_make_osd(fly_time=5.0)),
+            Record(record_type=4, data=_make_camera(is_recording=False, record_time=0)),
+            Record(record_type=1, data=_make_osd(fly_time=6.0)),
+        ]
+        frames = records_to_frames(records, details)
+        assert compute_video_time(frames) == 45.0  # 15 + 30
+
+    def test_recording_still_active_at_end(self) -> None:
+        """Recording active at end of log → segment is still counted."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(record_type=4, data=_make_camera(is_recording=True, record_time=0)),
+            Record(record_type=1, data=_make_osd(fly_time=1.0)),
+            Record(record_type=4, data=_make_camera(is_recording=True, record_time=44)),
+            Record(record_type=1, data=_make_osd(fly_time=2.0)),
+        ]
+        frames = records_to_frames(records, details)
+        assert compute_video_time(frames) == 44.0
+
+    def test_record_time_in_frame(self) -> None:
+        """Camera.record_time propagates to FrameCamera.record_time."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(record_type=4, data=_make_camera(is_recording=True, record_time=42)),
+            Record(record_type=1, data=_make_osd(fly_time=1.0)),
+        ]
+        frames = records_to_frames(records, details)
+        assert frames[0].camera.record_time == 42

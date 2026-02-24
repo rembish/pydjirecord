@@ -152,6 +152,7 @@ def records_to_frames(records: list[Record], details: Details) -> list[Frame]:
             frame.camera.is_video = data.is_recording
             frame.camera.sd_card_is_inserted = data.has_sd_card
             frame.camera.sd_card_state = data.sd_card_state
+            frame.camera.record_time = data.record_time
 
         elif isinstance(data, (RC, RCDisplayField)):
             frame.rc.aileron = data.aileron
@@ -315,3 +316,34 @@ def _reset(frame: Frame) -> None:
     if frame.battery.is_cell_voltage_estimated:
         for i in range(len(frame.battery.cell_voltages)):
             frame.battery.cell_voltages[i] = 0.0
+
+
+def compute_video_time(frames: list[Frame]) -> float:
+    """Compute total video recording duration from Camera record_time segments.
+
+    Each recording segment has ``record_time`` counting up from 0.  The total
+    video duration is the sum of the maximum ``record_time`` in each segment.
+    """
+    total = 0.0
+    was_recording = False
+    segment_max = 0
+
+    for frame in frames:
+        is_recording = frame.camera.is_video
+        rt = frame.camera.record_time
+
+        if is_recording:
+            if rt > segment_max:
+                segment_max = rt
+        elif was_recording:
+            # Recording just stopped — flush this segment
+            total += segment_max
+            segment_max = 0
+
+        was_recording = is_recording
+
+    # Flush final segment if still recording at end of log
+    if was_recording:
+        total += segment_max
+
+    return total
