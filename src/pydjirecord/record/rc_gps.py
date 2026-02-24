@@ -28,13 +28,13 @@ class RCGPS:
     """
 
     time: RCGPSTime
-    latitude: float    # degrees
-    longitude: float   # degrees
-    velocity_x: int    # raw i32
-    velocity_y: int    # raw i32
-    gps_num: int       # number of satellites
-    accuracy: float    # metres
-    valid_data: int    # validity flags
+    latitude: float  # degrees
+    longitude: float  # degrees
+    velocity_x: int  # raw i32
+    velocity_y: int  # raw i32
+    gps_num: int  # number of satellites
+    accuracy: float  # metres
+    valid_data: int  # validity flags
 
     @classmethod
     def from_bytes(cls, data: bytes) -> RCGPS:

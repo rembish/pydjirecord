@@ -105,9 +105,7 @@ class TestApiOverrideArgs:
         assert args.api_custom_version == 3
 
     def test_both_overrides_parsed(self) -> None:
-        args = build_parser().parse_args(
-            [str(SAMPLE_LOG), "--api-custom-department", "2", "--api-custom-version", "3"]
-        )
+        args = build_parser().parse_args([str(SAMPLE_LOG), "--api-custom-department", "2", "--api-custom-version", "3"])
         assert args.api_custom_department == 2
         assert args.api_custom_version == 3
 

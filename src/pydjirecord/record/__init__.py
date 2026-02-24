@@ -25,7 +25,6 @@ from .rc import RC
 from .rc_display_field import RCDisplayField
 from .rc_gps import RCGPS, RCGPSTime
 from .recover import Recover
-from .virtual_stick import VirtualStick
 from .smart_battery import SmartBattery
 from .smart_battery_group import (
     SmartBatteryDynamic,
@@ -34,11 +33,13 @@ from .smart_battery_group import (
     SmartBatteryStatic,
     parse_smart_battery_group,
 )
+from .virtual_stick import VirtualStick
 
 __all__ = [
     "OFDM",
     "OSD",
     "RC",
+    "RCGPS",
     "AppGPS",
     "AppSeriousWarn",
     "AppTip",
@@ -52,17 +53,16 @@ __all__ = [
     "Home",
     "KeyStorage",
     "MCParams",
-    "RCGPS",
     "RCDisplayField",
     "RCGPSTime",
     "Record",
-    "VirtualStick",
     "Recover",
     "SmartBattery",
     "SmartBatteryDynamic",
     "SmartBatteryGroup",
     "SmartBatterySingleVoltage",
     "SmartBatteryStatic",
+    "VirtualStick",
     "parse_record",
 ]
 
