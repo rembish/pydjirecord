@@ -87,6 +87,8 @@ def _get_keychains(
     api_key: str | None,
     custom_department: int | None = None,
     custom_version: int | None = None,
+    *,
+    cache: bool = True,
 ) -> list[list[KeychainFeaturePoint]] | None:
     """Fetch keychains for v13+ logs, return None for older versions."""
     if log.version < 13:
@@ -100,8 +102,8 @@ def _get_keychains(
             req.department = custom_department
         if custom_version is not None:
             req.version = custom_version
-        return req.fetch(api_key)
-    return log.fetch_keychains(api_key)
+        return req.fetch(api_key, cache=cache)
+    return log.fetch_keychains(api_key, cache=cache)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -123,6 +125,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--api-key", metavar="KEY", help="DJI API key for v13+ AES decryption")
     parser.add_argument("--api-custom-department", metavar="INT", type=int, help="override keychain API department")
     parser.add_argument("--api-custom-version", metavar="INT", type=int, help="override keychain API version")
+    parser.add_argument("--no-cache", action="store_true", default=False, help="disable local keychain cache")
 
     return parser
 
@@ -145,6 +148,7 @@ def main(argv: list[str] | None = None) -> None:
     api_key: str | None = args.api_key or os.environ.get("DJI_API_KEY")
     custom_department: int | None = args.api_custom_department
     custom_version: int | None = args.api_custom_version
+    use_cache: bool = not args.no_cache
     output_path: str = args.output
 
     # No format flag → human-readable info
@@ -155,7 +159,7 @@ def main(argv: list[str] | None = None) -> None:
     # JSON / raw JSON
     if args.json or args.raw:
         if args.raw or api_key or log.version < 13:
-            keychains = _get_keychains(log, api_key, custom_department, custom_version)
+            keychains = _get_keychains(log, api_key, custom_department, custom_version, cache=use_cache)
             if args.raw:
                 records = log.records(keychains)
                 text = export_json(log, raw_records=records)
@@ -172,7 +176,7 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     # Frame-based exports require decryption
-    keychains = _get_keychains(log, api_key, custom_department, custom_version)
+    keychains = _get_keychains(log, api_key, custom_department, custom_version, cache=use_cache)
     frames = log.frames(keychains)
 
     if args.kml:

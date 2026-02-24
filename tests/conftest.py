@@ -137,3 +137,11 @@ def _create_fixture_log() -> None:
 def sample_log_bytes() -> bytes:
     """Return the minimal v14 log as raw bytes (fixture must already exist)."""
     return FIXTURE_LOG.read_bytes()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_keychain_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Redirect the keychain cache to a temp dir so tests never hit the real fs."""
+    cache = tmp_path / "keychains"
+    cache.mkdir()
+    monkeypatch.setattr("pydjirecord.keychain.api._cache_dir", lambda: cache)

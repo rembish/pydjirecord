@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+import logging
+import os
+import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -12,6 +18,23 @@ from .feature_point import FeaturePoint
 
 _ENDPOINT = "https://dev.dji.com/openapi/v1/flight-records/keychains"
 _TIMEOUT = 30.0
+_CACHE_TTL = 30 * 24 * 3600  # 30 days in seconds
+
+_log = logging.getLogger(__name__)
+
+
+def _cache_dir() -> Path:
+    """Return the keychain cache directory, creating it if needed."""
+    base = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    d = base / "pydjirecord" / "keychains"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _cache_key(body: dict[str, Any]) -> str:
+    """Compute SHA-256 hex digest of the canonical JSON request body."""
+    raw = json.dumps(body, sort_keys=True).encode()
+    return hashlib.sha256(raw).hexdigest()
 
 
 @dataclass
@@ -53,9 +76,30 @@ class KeychainsRequest:
             "keychainsArray": [[fp.to_dict() for fp in group] for group in self.keychains],
         }
 
-    def fetch(self, api_key: str) -> list[list[KeychainFeaturePoint]]:
-        """Fetch decoded keychains from DJI API."""
+    def fetch(self, api_key: str, *, cache: bool = True) -> list[list[KeychainFeaturePoint]]:
+        """Fetch decoded keychains from DJI API.
+
+        When *cache* is ``True`` (default), responses are cached locally
+        under ``$XDG_CACHE_HOME/pydjirecord/keychains/`` so that
+        repeated parses of the same log file skip the network round-trip.
+        """
         body = self.to_dict()
+        key = _cache_key(body)
+
+        # Try reading from cache
+        if cache:
+            try:
+                cache_file = _cache_dir() / f"{key}.json"
+                age = time.time() - cache_file.stat().st_mtime
+                if age < _CACHE_TTL:
+                    data = json.loads(cache_file.read_text(encoding="utf-8"))
+                    _log.debug("keychain cache hit: %s", key[:12])
+                    return _parse_data(data)
+                _log.debug("keychain cache expired: %s", key[:12])
+            except Exception:
+                pass  # cache miss or corrupt — fall through to API
+
+        # API call
         try:
             resp = httpx.post(
                 _ENDPOINT,
@@ -80,19 +124,32 @@ class KeychainsRequest:
         if data is None:
             return []
 
-        keychains: list[list[KeychainFeaturePoint]] = []
-        for group in data:
-            kc_group: list[KeychainFeaturePoint] = []
-            for entry in group:
-                kc_group.append(
-                    KeychainFeaturePoint(
-                        feature_point=_parse_feature_point_value(entry.get("featurePoint", "")),
-                        aes_key=entry.get("aesKey", ""),
-                        aes_iv=entry.get("aesIv", ""),
-                    )
+        # Write to cache
+        if cache:
+            try:
+                (_cache_dir() / f"{key}.json").write_text(json.dumps(data), encoding="utf-8")
+                _log.debug("keychain cache write: %s", key[:12])
+            except Exception:
+                _log.debug("keychain cache write failed: %s", key[:12])
+
+        return _parse_data(data)
+
+
+def _parse_data(data: list[list[dict[str, str]]]) -> list[list[KeychainFeaturePoint]]:
+    """Convert raw API ``data`` array into :class:`KeychainFeaturePoint` lists."""
+    keychains: list[list[KeychainFeaturePoint]] = []
+    for group in data:
+        kc_group: list[KeychainFeaturePoint] = []
+        for entry in group:
+            kc_group.append(
+                KeychainFeaturePoint(
+                    feature_point=_parse_feature_point_value(entry.get("featurePoint", "")),
+                    aes_key=entry.get("aesKey", ""),
+                    aes_iv=entry.get("aesIv", ""),
                 )
-            keychains.append(kc_group)
-        return keychains
+            )
+        keychains.append(kc_group)
+    return keychains
 
 
 def _parse_feature_point_value(name: str) -> int:

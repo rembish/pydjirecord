@@ -155,14 +155,14 @@ class DJILog:
         req.keychains.append(current_group)
         return req
 
-    def fetch_keychains(self, api_key: str) -> list[list[KeychainFeaturePoint]]:
+    def fetch_keychains(self, api_key: str, *, cache: bool = True) -> list[list[KeychainFeaturePoint]]:
         """Fetch decoded keychains from DJI API.
 
         Only needed for v13+ logs. Returns empty list for older versions.
         """
         if self.version < 13:
             return []
-        return self.keychains_request().fetch(api_key)
+        return self.keychains_request().fetch(api_key, cache=cache)
 
     def records(
         self,

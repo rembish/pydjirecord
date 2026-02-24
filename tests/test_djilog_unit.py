@@ -267,7 +267,7 @@ class TestFetchKeychains:
         """v13+ fetch_keychains calls keychains_request().fetch() — network monkeypatched."""
         from pydjirecord.keychain.api import KeychainsRequest
 
-        monkeypatch.setattr(KeychainsRequest, "fetch", lambda self, key: [])
+        monkeypatch.setattr(KeychainsRequest, "fetch", lambda self, key, **kw: [])
         log = DJILog.from_bytes(_make_v14_log())
         assert log.fetch_keychains("dummy") == []
 

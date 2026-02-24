@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.3] - 2026-02-24
+
+### Added
+
+- Local caching of DJI keychain API responses under
+  `$XDG_CACHE_HOME/pydjirecord/keychains/` (default `~/.cache/…`).
+  Cache key is SHA-256 of the request body; entries expire after 30 days.
+  Eliminates the ~1-2 s API round-trip on repeated parses of the same log file.
+- `--no-cache` CLI flag to bypass the local keychain cache.
+- `cache` keyword argument on `KeychainsRequest.fetch()` and
+  `DJILog.fetch_keychains()` for programmatic control.
+- `tests/test_keychain_cache.py` — 7 tests covering cache hit, miss+write,
+  corrupt fallback, TTL expiry, and `cache=False` bypass.
+- Autouse `_isolate_keychain_cache` conftest fixture so no test touches the
+  real filesystem cache.
+
 ## [0.7.2] - 2026-02-24
 
 ### Added
