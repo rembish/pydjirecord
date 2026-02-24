@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pydjirecord"
-version = "0.7.1"
+version = "0.7.2"
 description = "Python parser for DJI drone flight log files"
 requires-python = ">=3.10"
 license = "MIT"
@@ -84,7 +84,7 @@ markers = [
 source = ["pydjirecord"]
 
 [tool.coverage.report]
-fail_under = 80
+fail_under = 90
 
 [tool.coverage.paths]
 source = ["src/pydjirecord"]

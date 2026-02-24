@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.2] - 2026-02-24
+
+### Added
+
+- Unit tests for `djilog.py` orchestration (`tests/test_djilog_unit.py`, 24 tests):
+  all branches of `from_bytes`, `records()`, `keychains_request()`,
+  `fetch_keychains()`, and `frames()` covered with crafted binary data — no
+  real log files or network access required.
+- Unit tests for `keychain/api.py` network layer (`TestFetch`, `TestParseFeaturePointValue`
+  in `test_keychain.py`, 9 tests): every `fetch()` response branch (HTTP error,
+  403, non-200, API error code, missing data, success) covered via monkeypatched
+  `httpx.post`.
+- Documentation of unreliable `Details` header fields in `README.md` (Known
+  Limitations section) and in the `Details` class docstring: `capture_num` is
+  always 0 for DJI Fly logs; `video_time` is not per-flight duration.
+- Note about network-restricted environments in README: v13+ decryption requires
+  outbound HTTPS to the DJI API; `details` fields remain available without it.
+
+### Changed
+
+- Minimum test coverage threshold raised from 80 % to 90 %.
+
 ## [0.7.1] - 2026-02-24
 
 ### Added
