@@ -15,8 +15,10 @@ from .export.csv import export_csv
 from .export.geojson import export_geojson
 from .export.json import export_json
 from .export.kml import export_kml
+from .frame.details import FrameDetails
 
 if TYPE_CHECKING:
+    from .frame import Frame
     from .keychain.api import KeychainFeaturePoint
     from .layout.details import Details
 
@@ -35,9 +37,10 @@ def _format_duration(seconds: float) -> str:
     return f"{s}s"
 
 
-def _print_info(log: DJILog) -> None:
+def _print_info(log: DJILog, frames: list[Frame] | None = None) -> None:
     """Print a human-readable summary to stdout."""
     d = log.details
+    fd = FrameDetails.from_details(d, frames)
     lines: list[str] = []
 
     lines.append(f"Log version:  {log.version}")
@@ -58,22 +61,24 @@ def _print_info(log: DJILog) -> None:
     location = _format_location(d)
     if location:
         lines.append(f"Location:     {location}")
-    lines.append(f"Coordinates:  {d.latitude:.6f}, {d.longitude:.6f}")
+    lines.append(f"Coordinates:  {fd.latitude:.6f}, {fd.longitude:.6f}")
     lines.append(f"Takeoff alt:  {d.take_off_altitude:.1f} m")
     lines.append("")
 
     # Flight stats
     lines.append("Flight stats:")
-    lines.append(f"  Distance:   {d.total_distance:.1f} m")
+    lines.append(f"  Distance:   {fd.total_distance:.1f} m")
     lines.append(f"  Duration:   {_format_duration(d.total_time)}")
     lines.append(f"  Max height: {d.max_height:.1f} m")
     lines.append(f"  Max H speed: {d.max_horizontal_speed:.1f} m/s")
     lines.append(f"  Max V speed: {d.max_vertical_speed:.1f} m/s")
+    if frames:
+        lines.append(f"  Frames:     {len(frames)}")
     lines.append("")
 
     # Media
-    lines.append(f"Photos:       {d.capture_num}")
-    lines.append(f"Video time:   {_format_duration(d.video_time)}")
+    lines.append(f"Photos:       {fd.photo_num}")
+    lines.append(f"Video time:   {_format_duration(fd.video_time)}")
     lines.append("")
 
     # App
@@ -153,7 +158,16 @@ def main(argv: list[str] | None = None) -> None:
 
     # No format flag → human-readable info
     if not (args.json or args.raw or args.geojson or args.kml or args.csv):
-        _print_info(log)
+        frames: list[Frame] | None = None
+        try:
+            if log.version < 13:
+                frames = log.frames(None)
+            elif api_key:
+                keychains = _get_keychains(log, api_key, custom_department, custom_version, cache=use_cache)
+                frames = log.frames(keychains)
+        except Exception:
+            frames = None
+        _print_info(log, frames)
         return
 
     # JSON / raw JSON

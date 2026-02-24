@@ -14,6 +14,18 @@ if TYPE_CHECKING:
 class FrameDetails:
     """Simplified details for frame-mode exports.
 
+    ``latitude`` / ``longitude``
+        When constructed via :meth:`from_details` with *frames* and the header
+        coordinates are ``(0, 0)``, these are computed from the first valid
+        OSD GPS fix (``gps_level >= 3``).  The DJI app fails to populate the
+        header coordinates in roughly 20 % of flights.
+
+    ``total_distance``
+        When constructed via :meth:`from_details` with *frames*, this is the
+        accurate GPS track length from the last frame's
+        ``osd.cumulative_distance``.  Without frames it falls back to the
+        raw header value (which can carry stale values from prior flights).
+
     ``photo_num``
         When constructed via :meth:`from_details` with *frames*, this is the
         accurate photo count computed from Camera ``remain_photo_num`` delta.
@@ -26,6 +38,8 @@ class FrameDetails:
         segments.  Without frames it falls back to the raw header value.
     """
 
+    latitude: float = 0.0
+    longitude: float = 0.0
     total_time: float = 0.0
     total_distance: float = 0.0
     max_height: float = 0.0
@@ -46,17 +60,26 @@ class FrameDetails:
         d: Details,
         frames: list[_frame_mod.Frame] | None = None,
     ) -> FrameDetails:
+        latitude = d.latitude
+        longitude = d.longitude
+        total_distance = d.total_distance
         photo_num = d.capture_num
         video_time: float = float(d.video_time)
         if frames is not None:
-            from .builder import compute_photo_num, compute_video_time
+            from .builder import compute_coordinates, compute_photo_num, compute_video_time
 
             photo_num = compute_photo_num(frames)
             video_time = compute_video_time(frames)
+            if latitude == 0.0 and longitude == 0.0:
+                latitude, longitude = compute_coordinates(frames)
+            if frames:
+                total_distance = frames[-1].osd.cumulative_distance
 
         return cls(
+            latitude=latitude,
+            longitude=longitude,
             total_time=d.total_time,
-            total_distance=d.total_distance,
+            total_distance=total_distance,
             max_height=d.max_height,
             max_horizontal_speed=d.max_horizontal_speed,
             max_vertical_speed=d.max_vertical_speed,

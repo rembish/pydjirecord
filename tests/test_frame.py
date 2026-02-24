@@ -6,12 +6,21 @@ import math
 
 from pydjirecord.frame import Frame
 from pydjirecord.frame.battery import FrameBattery
-from pydjirecord.frame.builder import _finalize, _reset, compute_photo_num, compute_video_time, records_to_frames
+from pydjirecord.frame.builder import (
+    _finalize,
+    _is_valid_gps,
+    _reset,
+    compute_coordinates,
+    compute_photo_num,
+    compute_video_time,
+    records_to_frames,
+)
 from pydjirecord.layout.details import Details, ProductType
 from pydjirecord.record import Record
 from pydjirecord.record.app_tip import AppTip
 from pydjirecord.record.camera import Camera, CameraWorkMode, SDCardState
 from pydjirecord.record.gimbal import Gimbal, GimbalMode
+from pydjirecord.record.home import CompassCalibrationState, GoHomeMode, Home, IOCMode
 from pydjirecord.record.osd import (
     OSD,
     AppCommand,
@@ -463,3 +472,308 @@ class TestPhotoNum:
         ]
         frames = records_to_frames(records, details)
         assert frames[0].camera.remain_photo_num == 1500
+
+
+def _make_home(**overrides: object) -> Home:
+    """Build a minimal Home record with defaults."""
+    defaults = dict(
+        longitude=19.8,
+        latitude=41.3,
+        altitude=95.0,
+        is_home_record=True,
+        go_home_mode=GoHomeMode.NORMAL,
+        is_dynamic_home_point_enabled=False,
+        is_near_distance_limit=False,
+        is_near_height_limit=False,
+        is_multiple_mode_open=False,
+        has_go_home=False,
+        compass_state=CompassCalibrationState.NOT_CALIBRATING,
+        is_compass_adjust=False,
+        is_beginner_mode=False,
+        is_ioc_open=False,
+        ioc_mode=IOCMode.COURSE_LOCK,
+        aircraft_head_direction=0,
+        go_home_height=30,
+        ioc_course_lock_angle=0,
+        current_flight_record_index=0,
+        max_allowed_height=120.0,
+    )
+    defaults.update(overrides)
+    return Home(**defaults)
+
+
+class TestIsValidGps:
+    def test_valid_coordinates(self) -> None:
+        assert _is_valid_gps(41.3, 19.8) is True
+
+    def test_zero_zero_invalid(self) -> None:
+        assert _is_valid_gps(0.0, 0.0) is False
+
+    def test_sentinel_invalid(self) -> None:
+        """DJI firmware sentinel (800000.0 rad → ~45836623°) is rejected."""
+        import math
+
+        sentinel = math.degrees(800000.0)
+        assert _is_valid_gps(sentinel, sentinel) is False
+
+    def test_out_of_range_latitude(self) -> None:
+        assert _is_valid_gps(91.0, 19.8) is False
+        assert _is_valid_gps(-91.0, 19.8) is False
+
+    def test_out_of_range_longitude(self) -> None:
+        assert _is_valid_gps(41.3, 181.0) is False
+        assert _is_valid_gps(41.3, -181.0) is False
+
+    def test_boundary_values(self) -> None:
+        assert _is_valid_gps(90.0, 180.0) is True
+        assert _is_valid_gps(-90.0, -180.0) is True
+
+
+class TestHomeSentinelFiltering:
+    def test_sentinel_home_not_applied(self) -> None:
+        """Home records with the firmware sentinel are ignored."""
+        import math
+
+        sentinel = math.degrees(800000.0)
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(record_type=2, data=_make_home(latitude=sentinel, longitude=sentinel)),
+            Record(record_type=1, data=_make_osd(fly_time=1.0)),
+        ]
+        frames = records_to_frames(records, details)
+        assert frames[0].home.latitude == 0.0
+        assert frames[0].home.longitude == 0.0
+
+    def test_valid_home_applied(self) -> None:
+        """Normal home coordinates are applied to the frame."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(record_type=2, data=_make_home(latitude=41.3, longitude=19.8)),
+            Record(record_type=1, data=_make_osd(fly_time=1.0)),
+        ]
+        frames = records_to_frames(records, details)
+        assert frames[0].home.latitude == 41.3
+        assert frames[0].home.longitude == 19.8
+
+    def test_sentinel_then_valid_home(self) -> None:
+        """Sentinel is ignored but subsequent valid home is applied."""
+        import math
+
+        sentinel = math.degrees(800000.0)
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(record_type=2, data=_make_home(latitude=sentinel, longitude=sentinel)),
+            Record(record_type=1, data=_make_osd(fly_time=1.0)),
+            # Second OSD triggers frame[0] append; the valid Home between
+            # the two OSDs is already applied to the accumulating frame.
+            Record(record_type=2, data=_make_home(latitude=41.3, longitude=19.8)),
+            Record(record_type=1, data=_make_osd(fly_time=2.0)),
+            Record(record_type=1, data=_make_osd(fly_time=3.0)),
+        ]
+        frames = records_to_frames(records, details)
+        # frame[0] gets the valid home (applied between 1st and 2nd OSD)
+        assert frames[0].home.latitude == 41.3
+        assert frames[0].home.longitude == 19.8
+
+
+class TestComputeCoordinates:
+    def test_first_valid_gps_returned(self) -> None:
+        """Returns coordinates from first frame with valid GPS."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(
+                record_type=1,
+                data=_make_osd(
+                    latitude=0.0,
+                    longitude=0.0,
+                    is_gps_valid=False,
+                    gps_level=0,
+                    fly_time=1.0,
+                ),
+            ),
+            Record(
+                record_type=1,
+                data=_make_osd(
+                    latitude=41.3,
+                    longitude=19.8,
+                    is_gps_valid=True,
+                    gps_level=4,
+                    fly_time=2.0,
+                ),
+            ),
+            Record(
+                record_type=1,
+                data=_make_osd(
+                    latitude=41.4,
+                    longitude=19.9,
+                    is_gps_valid=True,
+                    gps_level=4,
+                    fly_time=3.0,
+                ),
+            ),
+        ]
+        frames = records_to_frames(records, details)
+        lat, lon = compute_coordinates(frames)
+        assert lat == 41.3
+        assert lon == 19.8
+
+    def test_no_valid_gps_returns_zero(self) -> None:
+        """Returns (0, 0) when no frame has a valid GPS fix."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(
+                record_type=1,
+                data=_make_osd(
+                    latitude=0.0,
+                    longitude=0.0,
+                    is_gps_valid=False,
+                    gps_level=0,
+                    fly_time=1.0,
+                ),
+            ),
+        ]
+        frames = records_to_frames(records, details)
+        lat, lon = compute_coordinates(frames)
+        assert lat == 0.0
+        assert lon == 0.0
+
+    def test_skips_low_gps_level(self) -> None:
+        """Frames with gps_level < 3 are skipped."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(
+                record_type=1,
+                data=_make_osd(
+                    latitude=41.0,
+                    longitude=19.0,
+                    is_gps_valid=True,
+                    gps_level=2,
+                    fly_time=1.0,
+                ),
+            ),
+            Record(
+                record_type=1,
+                data=_make_osd(
+                    latitude=41.3,
+                    longitude=19.8,
+                    is_gps_valid=True,
+                    gps_level=4,
+                    fly_time=2.0,
+                ),
+            ),
+        ]
+        frames = records_to_frames(records, details)
+        lat, lon = compute_coordinates(frames)
+        assert lat == 41.3
+        assert lon == 19.8
+
+    def test_empty_frames(self) -> None:
+        assert compute_coordinates([]) == (0.0, 0.0)
+
+
+class TestFrameDetailsCoordinates:
+    def test_uses_header_when_nonzero(self) -> None:
+        """Non-zero header coordinates are passed through."""
+        from pydjirecord.frame.details import FrameDetails
+
+        d = Details(product_type=ProductType.MAVIC_AIR2, latitude=41.3, longitude=19.8)
+        fd = FrameDetails.from_details(d)
+        assert fd.latitude == 41.3
+        assert fd.longitude == 19.8
+
+    def test_falls_back_to_frames_when_zero(self) -> None:
+        """Zero header coordinates are replaced by first valid OSD GPS fix."""
+        from pydjirecord.frame.details import FrameDetails
+
+        d = Details(product_type=ProductType.MAVIC_AIR2, latitude=0.0, longitude=0.0)
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(
+                record_type=1,
+                data=_make_osd(
+                    latitude=0.0,
+                    longitude=0.0,
+                    is_gps_valid=False,
+                    gps_level=0,
+                    fly_time=1.0,
+                ),
+            ),
+            Record(
+                record_type=1,
+                data=_make_osd(
+                    latitude=39.75,
+                    longitude=20.0,
+                    is_gps_valid=True,
+                    gps_level=4,
+                    fly_time=2.0,
+                ),
+            ),
+        ]
+        frames = records_to_frames(records, details)
+        fd = FrameDetails.from_details(d, frames)
+        assert fd.latitude == 39.75
+        assert fd.longitude == 20.0
+
+    def test_stays_zero_when_no_gps(self) -> None:
+        """Zero header + no valid GPS in frames → stays (0, 0)."""
+        from pydjirecord.frame.details import FrameDetails
+
+        d = Details(product_type=ProductType.MAVIC_AIR2, latitude=0.0, longitude=0.0)
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(
+                record_type=1,
+                data=_make_osd(
+                    latitude=0.0,
+                    longitude=0.0,
+                    is_gps_valid=False,
+                    gps_level=0,
+                    fly_time=1.0,
+                ),
+            ),
+        ]
+        frames = records_to_frames(records, details)
+        fd = FrameDetails.from_details(d, frames)
+        assert fd.latitude == 0.0
+        assert fd.longitude == 0.0
+
+    def test_total_distance_from_frames(self) -> None:
+        """total_distance uses cumulative_distance from last frame."""
+        from pydjirecord.frame.details import FrameDetails
+
+        d = Details(product_type=ProductType.MAVIC_AIR2, total_distance=999.0)
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(
+                record_type=1,
+                data=_make_osd(
+                    latitude=41.0,
+                    longitude=19.0,
+                    is_gps_valid=True,
+                    gps_level=4,
+                    fly_time=1.0,
+                ),
+            ),
+            Record(
+                record_type=1,
+                data=_make_osd(
+                    latitude=41.001,
+                    longitude=19.0,
+                    is_gps_valid=True,
+                    gps_level=4,
+                    fly_time=2.0,
+                ),
+            ),
+        ]
+        frames = records_to_frames(records, details)
+        fd = FrameDetails.from_details(d, frames)
+        # Should use frame-computed distance (~111 m), not header value (999 m)
+        assert 100.0 < fd.total_distance < 120.0
+
+    def test_total_distance_falls_back_to_header(self) -> None:
+        """Without frames, total_distance uses header value."""
+        from pydjirecord.frame.details import FrameDetails
+
+        d = Details(product_type=ProductType.MAVIC_AIR2, total_distance=1234.5)
+        fd = FrameDetails.from_details(d)
+        assert fd.total_distance == 1234.5

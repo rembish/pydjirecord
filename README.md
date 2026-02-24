@@ -44,10 +44,11 @@ djirecord FILE [--json | --raw | --geojson | --kml | --csv] [-o FILE] [--api-key
 
 ### Flight info (default)
 
-With no format flag, prints a human-readable summary:
+With no format flag, prints a human-readable summary. When an API key is available (or the log doesn't need one), frames are decrypted automatically and corrected values are shown for coordinates, distance, photos, and video time:
 
 ```bash
-djirecord flight.txt
+djirecord flight.txt                    # header-only for v13+
+djirecord flight.txt --api-key KEY      # decrypts frames, shows corrected values
 ```
 
 ```
@@ -62,6 +63,10 @@ Flight stats:
   Distance:   4523.1 m
   Duration:   8m 42s
   Max height: 119.8 m
+  Frames:     4362
+
+Photos:       62
+Video time:   1m 13s
 ```
 
 ### Export formats
@@ -130,41 +135,47 @@ records = log.records(keychains)
 
 ### Accurate flight statistics
 
-Several header fields (`capture_num`, `video_time`, `total_distance`) are unreliable. When you have decrypted frames, use the computed values instead:
+Several header fields (`capture_num`, `video_time`, `total_distance`, `latitude`/`longitude`) are unreliable. `FrameDetails` corrects them automatically when you pass decoded frames:
 
 ```python
 from pydjirecord import DJILog
 from pydjirecord.frame.details import FrameDetails
-from pydjirecord.frame.builder import compute_photo_num, compute_video_time
 
 data = open("flight.txt", "rb").read()
 log = DJILog.from_bytes(data)
 keychains = log.fetch_keychains("YOUR_API_KEY") if log.version >= 13 else None
 frames = log.frames(keychains)
 
-# Accurate photo count (header is always 0 for DJI Fly logs)
-photos = compute_photo_num(frames)
-
-# Accurate video duration in seconds (header is off by up to 100x)
-video_seconds = compute_video_time(frames)
-
-# Accurate total distance in metres (header can carry stale values)
-distance = frames[-1].osd.cumulative_distance if frames else 0.0
-
-# FrameDetails bundles all the corrected values for export
+# FrameDetails computes all corrected values from frames automatically
 details = FrameDetails.from_details(log.details, frames)
-print(details.photo_num)    # computed from remain_photo_num delta
-print(details.video_time)   # computed from record_time segments
+
+print(details.latitude)       # from header, or first valid OSD GPS fix if header is 0,0
+print(details.longitude)      # same
+print(details.total_distance) # cumulative GPS track length from frames
+print(details.photo_num)      # computed from Camera remain_photo_num delta
+print(details.video_time)     # computed from Camera record_time segments
+```
+
+The individual `compute_*` functions are also available if you need them directly:
+
+```python
+from pydjirecord.frame.builder import compute_coordinates, compute_photo_num, compute_video_time
+
+lat, lon = compute_coordinates(frames)                            # first valid GPS fix
+distance = frames[-1].osd.cumulative_distance if frames else 0.0  # GPS track length
+photos = compute_photo_num(frames)                                # remain_photo_num delta
+video_seconds = compute_video_time(frames)                        # sum of record_time segments
 ```
 
 ## Known Limitations
 
 ### Header field caveats
 
-The `Details` header block is readable without decryption. Most fields are reliable, but some are not (verified across 467 real flight logs):
+The `Details` header block is readable without decryption. Most fields are reliable, but some are not (verified across 585 real flight logs):
 
 | Field | Status | Notes |
 |-------|--------|-------|
+| `details.latitude` / `details.longitude` | Unreliable | Zero in ~20 % of flights (116 of 585 tested logs) despite being real outdoor flights with GPS. The DJI app fails to write takeoff coordinates to the header. When frames are available, `FrameDetails` falls back to the first valid OSD GPS fix. |
 | `details.total_distance` | Approximate | Stored in the binary as kilometres; converted to metres on parse. Matches frame-computed distance within float32 precision in 95%+ of logs. A small number carry stale values from prior flights. The DJI C++ library ignores this field and recomputes from the GPS track. Prefer `frames[-1].osd.cumulative_distance` when decrypted frames are available. |
 | `details.max_height` | Reliable | Matches frame-computed maximum within 1-2 m in all tested logs. |
 | `details.max_horizontal_speed` | Reliable | Matches frame-computed maximum in all tested logs. |

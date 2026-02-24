@@ -30,6 +30,19 @@ from . import Frame
 from .battery import FrameBattery
 from .recover import FrameRecover
 
+
+def _is_valid_gps(lat: float, lon: float) -> bool:
+    """Return True if *lat*/*lon* represent a plausible GPS fix.
+
+    Rejects (0, 0) and out-of-range values such as the DJI firmware sentinel
+    ``800000.0 rad`` (≈ 45 836 623° after radians→degrees conversion) that
+    appears in Home records before GPS lock.
+    """
+    if lat == 0.0 and lon == 0.0:
+        return False
+    return -90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0
+
+
 if TYPE_CHECKING:
     from ..layout.details import Details
     from ..record import Record
@@ -72,13 +85,13 @@ def records_to_frames(records: list[Record], details: Details) -> list[Frame]:
 
             frame.osd.fly_time = data.fly_time
             # Only update coordinates if valid, preserving any prior values
-            if data.latitude != 0.0 or data.longitude != 0.0:
+            if _is_valid_gps(data.latitude, data.longitude):
                 frame.osd.latitude = data.latitude
                 frame.osd.longitude = data.longitude
 
             # Accumulate GPS track distance — mirrors CoordinateIsValid from
             # the DJI C++ reference: gps_level >= 3 and is_gps_valid.
-            if data.is_gps_valid and data.gps_level >= 3 and (data.latitude != 0.0 or data.longitude != 0.0):
+            if data.is_gps_valid and data.gps_level >= 3 and _is_valid_gps(data.latitude, data.longitude):
                 curr = (data.latitude, data.longitude)
                 if _prev_gps is not None:
                     frame.osd.cumulative_distance += haversine_distance(_prev_gps[0], _prev_gps[1], curr[0], curr[1])
@@ -214,8 +227,10 @@ def records_to_frames(records: list[Record], details: Details) -> list[Frame]:
             frame.custom.date_time = data.update_timestamp
 
         elif isinstance(data, Home):
-            # Only update home coordinates if valid
-            if data.latitude != 0.0 or data.longitude != 0.0:
+            # Only update home coordinates if valid — also rejects the DJI
+            # firmware sentinel (800000.0 rad ≈ 45 836 623°) that appears
+            # in Home records before the GPS has acquired a fix.
+            if _is_valid_gps(data.latitude, data.longitude):
                 frame.home.latitude = data.latitude
                 frame.home.longitude = data.longitude
             if frame.home.altitude == 0.0:
@@ -348,6 +363,20 @@ def compute_video_time(frames: list[Frame]) -> float:
         total += segment_max
 
     return total
+
+
+def compute_coordinates(frames: list[Frame]) -> tuple[float, float]:
+    """Return ``(latitude, longitude)`` of the first valid GPS fix.
+
+    Scans frames for the first OSD position with ``gps_level >= 3``,
+    ``is_gpd_used`` True, and non-zero coordinates.  Returns ``(0.0, 0.0)``
+    if no valid fix is found.
+    """
+    for frame in frames:
+        osd = frame.osd
+        if osd.is_gpd_used and osd.gps_level >= 3 and _is_valid_gps(osd.latitude, osd.longitude):
+            return (osd.latitude, osd.longitude)
+    return (0.0, 0.0)
 
 
 def compute_photo_num(frames: list[Frame]) -> int:

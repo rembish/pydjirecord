@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0] - 2026-02-24
+
+### Fixed
+
+- **Home point sentinel**: Home records written before GPS lock contain a
+  firmware sentinel value (`800000.0` radians ≈ 45 836 623°) that was leaking
+  into `FrameHome.latitude`/`longitude`.  The frame builder now rejects
+  out-of-range coordinates (outside ±90°/±180°) in both Home and OSD records.
+- **Null header coordinates**: `Details.latitude`/`longitude` are `(0, 0)` in
+  ~20 % of real flights (116 of 585 tested).  `FrameDetails` now falls back to
+  the first valid OSD GPS fix (`gps_level >= 3`) when the header is zero.
+
+### Added
+
+- `compute_coordinates(frames)` in `frame.builder` — returns
+  `(latitude, longitude)` of the first valid GPS fix from OSD frames.
+- `FrameDetails.latitude` / `FrameDetails.longitude` fields — populated from
+  the header when non-zero, or computed from frames when the header is `(0, 0)`.
+- `FrameDetails.total_distance` now uses `cumulative_distance` from the last
+  decoded frame when frames are available, replacing the header value (which
+  can carry stale values from prior flights).
+- `_is_valid_gps(lat, lon)` coordinate bounds check in frame builder.
+- CLI info mode now decrypts frames when an API key is available (or the log
+  version doesn't require one) and displays corrected coordinates, distance,
+  photo count, video time, and frame count.  Falls back to the raw header
+  silently if decryption fails.
+- Tests for sentinel filtering, coordinate computation, distance propagation,
+  and FrameDetails fallback.
+
 ## [0.7.6] - 2026-02-24
 
 ### Added
