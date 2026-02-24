@@ -8,6 +8,8 @@ Supports all log format versions 1 through 14, including XOR encoding (v7-12) an
 
 This project is a Python rewrite of [dji-log-parser](https://github.com/lvauvillier/dji-log-parser) by [Luc Vauvillier](https://github.com/lvauvillier). The Rust implementation is the authoritative reference for parsing logic, binary layouts, and encryption details. Thank you for the excellent work and for making it open source.
 
+Binary struct layouts and feature-point mappings are cross-referenced against the official DJI C++ parsing library: [dji-sdk/FlightRecordParsingLib](https://github.com/dji-sdk/FlightRecordParsingLib).
+
 ## Requirements
 
 - Python 3.10+
@@ -27,7 +29,7 @@ pip install 'pydjirecord[proto]'
 Or from source:
 
 ```bash
-git clone https://github.com/example/pydjirecord.git
+git clone https://github.com/rembish/pydjirecord.git
 cd pydjirecord
 make install
 ```
@@ -113,8 +115,8 @@ print(log.version)
 print(log.details.aircraft_name)
 print(log.details.total_distance)
 
-# Decrypt and iterate frames (v13+ needs keychains)
-keychains = log.fetch_keychains("YOUR_API_KEY")  # None for v1-12
+# Decrypt and iterate frames (v13+ needs keychains from the DJI API)
+keychains = log.fetch_keychains("YOUR_API_KEY") if log.version >= 13 else None
 frames = log.frames(keychains)
 
 for frame in frames:

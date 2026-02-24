@@ -82,22 +82,24 @@ class TestRecordsToFrames:
         frames = records_to_frames([], details)
         assert frames == []
 
-    def test_single_osd_no_push(self) -> None:
-        """A single OSD doesn't push a frame (frame pushed on NEXT OSD)."""
+    def test_single_osd_produces_one_frame(self) -> None:
+        """A single OSD produces exactly one frame (flushed at end of loop)."""
         details = Details(product_type=ProductType.MAVIC_AIR2)
-        records = [Record(record_type=1, data=_make_osd())]
+        records = [Record(record_type=1, data=_make_osd(fly_time=1.0))]
         frames = records_to_frames(records, details)
-        assert len(frames) == 0
+        assert len(frames) == 1
+        assert frames[0].osd.fly_time == 1.0
 
-    def test_two_osds_push_one_frame(self) -> None:
+    def test_two_osds_produce_two_frames(self) -> None:
         details = Details(product_type=ProductType.MAVIC_AIR2)
         records = [
             Record(record_type=1, data=_make_osd(fly_time=1.0)),
             Record(record_type=1, data=_make_osd(fly_time=2.0)),
         ]
         frames = records_to_frames(records, details)
-        assert len(frames) == 1
+        assert len(frames) == 2
         assert frames[0].osd.fly_time == 1.0
+        assert frames[1].osd.fly_time == 2.0
 
     def test_gimbal_accumulates(self) -> None:
         details = Details(product_type=ProductType.MAVIC_AIR2)
@@ -117,7 +119,7 @@ class TestRecordsToFrames:
             Record(record_type=1, data=_make_osd(fly_time=2.0)),
         ]
         frames = records_to_frames(records, details)
-        assert len(frames) == 1
+        assert len(frames) == 2
         assert frames[0].gimbal.pitch == -10.0
         assert frames[0].gimbal.mode == GimbalMode.YAW_FOLLOW
 
@@ -142,7 +144,7 @@ class TestRecordsToFrames:
             Record(record_type=1, data=_make_osd(fly_time=3.0)),
         ]
         frames = records_to_frames(records, details)
-        assert len(frames) == 2
+        assert len(frames) == 3
         assert "Tip1" in frames[0].app.tip
         # Second frame tip should NOT contain Tip1 (only flight mode change msg)
         assert "Tip1" not in frames[1].app.tip
@@ -156,7 +158,7 @@ class TestHSpeedComputation:
             Record(record_type=1, data=_make_osd(speed_x=0.0, speed_y=0.0, fly_time=2.0)),
         ]
         frames = records_to_frames(records, details)
-        assert len(frames) == 1
+        assert len(frames) == 2
         assert abs(frames[0].osd.h_speed - 5.0) < 0.001  # 3-4-5 triangle
 
     def test_h_speed_max_tracks_maximum(self) -> None:
@@ -167,7 +169,7 @@ class TestHSpeedComputation:
             Record(record_type=1, data=_make_osd(speed_x=0.0, speed_y=0.0, fly_time=3.0)),
         ]
         frames = records_to_frames(records, details)
-        assert len(frames) == 2
+        assert len(frames) == 3
         # First frame: h_speed = 5.0
         assert abs(frames[0].osd.h_speed - 5.0) < 0.001
         assert abs(frames[0].osd.h_speed_max - 5.0) < 0.001

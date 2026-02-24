@@ -87,7 +87,7 @@ class TestJsonOutput:
 class TestExportsRequireApiKey:
     """v14 logs require API key for frame-based exports."""
 
-    @pytest.mark.parametrize("flag", ["--geojson", "--kml", "--csv"])
+    @pytest.mark.parametrize("flag", ["--geojson", "--kml", "--csv", "--raw"])
     def test_exports_exit_without_api_key(self, flag: str) -> None:
         with pytest.raises(SystemExit, match="1"):
             main([str(SAMPLE_LOG), flag])

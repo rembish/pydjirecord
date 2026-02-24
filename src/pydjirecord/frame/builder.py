@@ -246,6 +246,11 @@ def records_to_frames(records: list[Record], details: Details) -> list[Frame]:
         elif isinstance(data, (AppWarn, AppSeriousWarn)):
             frame.app.warn = append_message(frame.app.warn, data.message)
 
+    # Flush the final frame (it has no subsequent OSD to trigger the append)
+    if frame_index > 0:
+        _finalize(frame)
+        frames.append(deepcopy(frame))
+
     return frames
 
 

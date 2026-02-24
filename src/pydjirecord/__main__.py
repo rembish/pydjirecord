@@ -154,7 +154,7 @@ def main(argv: list[str] | None = None) -> None:
 
     # JSON / raw JSON
     if args.json or args.raw:
-        if api_key or log.version < 13:
+        if args.raw or api_key or log.version < 13:
             keychains = _get_keychains(log, api_key, custom_department, custom_version)
             if args.raw:
                 records = log.records(keychains)
@@ -163,6 +163,7 @@ def main(argv: list[str] | None = None) -> None:
                 frames = log.frames(keychains)
                 text = export_json(log, frames=frames)
         else:
+            # --json without API key on v13+: details-only fallback
             text = export_json(log)
         if output_path == "-":
             print(text)

@@ -55,6 +55,29 @@ def test_roundtrip_with_known_key() -> None:
 
 
 class TestAesDecode:
+    def test_padding_error_returns_raw_decrypt(self) -> None:
+        """Padding error fallback must not re-use the consumed cipher object.
+
+        Before the fix, aes_decode called cipher.decrypt(data) inside unpad(),
+        and on ValueError called cipher.decrypt(data) again on the *same*
+        stateful CBC cipher object, producing garbage.  The fix decrypts once,
+        stores the result, then unpad's that buffer.
+        """
+        from Crypto.Cipher import AES
+
+        key = b"\x01" * 32
+        iv = b"\x02" * 16
+        # Encrypt \xff * 16 so decrypting gives bytes where the last byte
+        # is 0xFF (= 255), which is not a valid PKCS7 padding length for a
+        # 16-byte block — triggering the fallback path.
+        ciphertext = AES.new(key, AES.MODE_CBC, iv).encrypt(b"\xff" * 16)
+
+        result, _ = aes_decode(ciphertext, iv, key)
+
+        # Must equal the raw decryption of a fresh cipher, not garbage
+        expected = AES.new(key, AES.MODE_CBC, iv).decrypt(ciphertext)
+        assert result == expected
+
     def test_roundtrip(self) -> None:
         """Encrypt then decrypt with AES-256-CBC should recover plaintext."""
         from Crypto.Cipher import AES

@@ -46,11 +46,12 @@ def aes_decode(data: bytes, iv: bytes, key: bytes) -> tuple[bytes, bytes]:
     next_iv = data[-block_size:] if len(data) >= block_size else iv
 
     cipher = AES.new(key, AES.MODE_CBC, iv)
+    decrypted = cipher.decrypt(data)
     try:
-        plaintext = unpad(cipher.decrypt(data), block_size)
+        plaintext = unpad(decrypted, block_size)
     except ValueError:
-        # Padding error — return decrypted without unpad
-        plaintext = cipher.decrypt(data)
+        # Padding error — return raw decrypted bytes without unpad
+        plaintext = decrypted
 
     return plaintext, next_iv
 

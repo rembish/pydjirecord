@@ -24,7 +24,7 @@ try:
     from .virtual_stick_pb2 import VirtualStickFlightControlData as _VSMsg  # type: ignore[attr-defined]
 
     _PROTOBUF_AVAILABLE = True
-except Exception:
+except ImportError:
     pass
 
 

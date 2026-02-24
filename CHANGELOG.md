@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.5] - 2026-02-24
+
+### Fixed
+
+- **CRITICAL-1**: `aes_decode()` was calling `cipher.decrypt(data)` a second time on the
+  already-consumed CBC cipher object when `unpad()` raised `ValueError`, producing corrupted
+  plaintext instead of the raw decryption. Fixed by decrypting once, storing the result, and
+  unpadding the stored bytes.
+- **HIGH-1**: The final telemetry frame was always dropped because frames were appended only
+  when the *next* OSD record arrived. Added an end-of-loop flush so every OSD record produces
+  exactly one frame.
+- **HIGH-2**: `--raw` on v13+ logs without an API key silently fell through to the
+  details-only JSON export. `--raw` now consistently requires a key on v13+ and exits with
+  an error, matching the behaviour of all other frame-based exports.
+- **MEDIUM-1**: `virtual_stick.py` caught all exceptions during protobuf import, hiding
+  real runtime errors. Narrowed to `ImportError` only.
+- **LOW-1**: README clone URL corrected to `https://github.com/rembish/pydjirecord.git`;
+  `fetch_keychains` code comment updated to show `if log.version >= 13 else None`.
+
+### Added
+
+- README: cross-reference to [dji-sdk/FlightRecordParsingLib](https://github.com/dji-sdk/FlightRecordParsingLib)
+  as the official DJI C++ source of truth for binary layouts and feature-point mappings.
+- `tests/test_decoder.py`: `TestAesDecode.test_padding_error_returns_raw_decrypt` — regression
+  test ensuring the CRITICAL-1 fix holds (padding-error fallback returns the single decrypt
+  result, not a re-decrypted garbage value).
+- `tests/test_cli.py`: `--raw` added to the `TestExportsRequireApiKey` parametrised check so
+  v13+ raw export without a key is asserted to exit 1.
+- `tests/test_djilog.py`: `pytestmark = pytest.mark.integration` and module-level docstring
+  explaining how to populate the `examples/` directory.
+- `pyproject.toml`: `integration` marker registered under `[tool.pytest.ini_options]`.
+
 ## [0.6.4] - 2026-02-24
 
 ### Added
