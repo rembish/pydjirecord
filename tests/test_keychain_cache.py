@@ -15,6 +15,7 @@ from pydjirecord.keychain.api import (
     EncodedKeychainFeaturePoint,
     KeychainsRequest,
     _cache_key,
+    _evict_cache,
 )
 
 if TYPE_CHECKING:
@@ -142,3 +143,61 @@ class TestCacheKey:
         a = {"version": 1, "department": 3, "keychainsArray": []}
         b = {"version": 2, "department": 3, "keychainsArray": []}
         assert _cache_key(a) != _cache_key(b)
+
+
+class TestCacheEviction:
+    def test_expired_entries_removed(self, tmp_path: Path) -> None:
+        cache_dir = tmp_path / "keychains"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create 3 files: 2 expired, 1 fresh
+        expired_time = time.time() - 31 * 24 * 3600
+        for i in range(2):
+            p = cache_dir / f"expired_{i}.json"
+            p.write_text("{}")
+            os.utime(p, (expired_time, expired_time))
+
+        fresh = cache_dir / "fresh_0.json"
+        fresh.write_text("{}")
+
+        _evict_cache(cache_dir)
+
+        remaining = list(cache_dir.glob("*.json"))
+        assert len(remaining) == 1
+        assert remaining[0].name == "fresh_0.json"
+
+    def test_lru_cap_removes_oldest(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr("pydjirecord.keychain.api._CACHE_MAX_ENTRIES", 3)
+        cache_dir = tmp_path / "keychains"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create 5 fresh files with staggered mtimes
+        now = time.time()
+        for i in range(5):
+            p = cache_dir / f"entry_{i}.json"
+            p.write_text("{}")
+            os.utime(p, (now - 500 + i * 100, now - 500 + i * 100))
+
+        _evict_cache(cache_dir)
+
+        remaining = sorted(p.name for p in cache_dir.glob("*.json"))
+        assert len(remaining) == 3
+        # Oldest 2 (entry_0, entry_1) should be evicted
+        assert remaining == ["entry_2.json", "entry_3.json", "entry_4.json"]
+
+    def test_eviction_runs_on_cache_write(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, req: KeychainsRequest
+    ) -> None:
+        cache_dir = tmp_path / "keychains"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Pre-populate with an expired entry
+        old = cache_dir / "old_entry.json"
+        old.write_text("{}")
+        expired_time = time.time() - 31 * 24 * 3600
+        os.utime(old, (expired_time, expired_time))
+
+        monkeypatch.setattr(httpx, "post", MagicMock(return_value=_api_response(_SAMPLE_DATA)))
+        req.fetch("key", cache=True)
+
+        assert not old.exists()

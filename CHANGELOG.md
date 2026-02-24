@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.5] - 2026-02-24
+
+### Fixed
+
+- Keychain cache now self-evicts: expired entries (>30 days) are pruned on
+  each cache write, and total entries are capped at 256 (LRU by mtime).
+  Prevents unbounded growth of `~/.cache/pydjirecord/keychains/`.
+
 ## [0.7.4] - 2026-02-24
 
 ### Added

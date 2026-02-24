@@ -19,6 +19,7 @@ from .feature_point import FeaturePoint
 _ENDPOINT = "https://dev.dji.com/openapi/v1/flight-records/keychains"
 _TIMEOUT = 30.0
 _CACHE_TTL = 30 * 24 * 3600  # 30 days in seconds
+_CACHE_MAX_ENTRIES = 256
 
 _log = logging.getLogger(__name__)
 
@@ -127,12 +128,43 @@ class KeychainsRequest:
         # Write to cache
         if cache:
             try:
-                (_cache_dir() / f"{key}.json").write_text(json.dumps(data), encoding="utf-8")
+                cache_path = _cache_dir() / f"{key}.json"
+                cache_path.write_text(json.dumps(data), encoding="utf-8")
                 _log.debug("keychain cache write: %s", key[:12])
+                _evict_cache(cache_path.parent)
             except Exception:
                 _log.debug("keychain cache write failed: %s", key[:12])
 
         return _parse_data(data)
+
+
+def _evict_cache(cache_dir: Path) -> None:
+    """Remove expired entries and cap total cache size."""
+    try:
+        entries = sorted(cache_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
+    except OSError:
+        return
+
+    now = time.time()
+    remaining: list[Path] = []
+    for p in entries:
+        try:
+            if now - p.stat().st_mtime >= _CACHE_TTL:
+                p.unlink()
+                _log.debug("keychain cache evict (expired): %s", p.name[:12])
+            else:
+                remaining.append(p)
+        except OSError:
+            pass
+
+    # LRU cap: remove oldest entries beyond the limit
+    over = len(remaining) - _CACHE_MAX_ENTRIES
+    for p in remaining[:over]:
+        try:
+            p.unlink()
+            _log.debug("keychain cache evict (lru): %s", p.name[:12])
+        except OSError:
+            pass
 
 
 def _parse_data(data: list[list[dict[str, str]]]) -> list[list[KeychainFeaturePoint]]:
