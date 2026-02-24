@@ -1,14 +1,12 @@
 """Integration tests for DJILog.from_bytes with real example files.
 
-These tests run only when the ``examples/`` directory is populated with real
-DJI flight logs named ``DJIFlightRecord_*.txt``.  Drop logs there and rerun
-``pytest`` — no other configuration required.
+Log discovery order:
+1. ``$DJI_LOGS_DIR`` (if set and containing ``DJIFlightRecord_*.txt`` files).
+2. Repository ``examples/`` directory.
 
-To run them explicitly even when the directory is empty (they will all be
-skipped/collected with zero params)::
+To run explicitly::
 
     pytest -m integration tests/test_djilog.py
-
 """
 
 from pathlib import Path
@@ -17,10 +15,11 @@ import pytest
 
 from pydjirecord import DJILog, ProductType
 
+from ._log_discovery import discover_log_files
+
 pytestmark = pytest.mark.integration
 
-EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
-EXAMPLE_FILES = sorted(EXAMPLES_DIR.glob("DJIFlightRecord_*.txt"))
+EXAMPLE_FILES = discover_log_files()
 
 
 @pytest.fixture(params=EXAMPLE_FILES, ids=[f.name for f in EXAMPLE_FILES])

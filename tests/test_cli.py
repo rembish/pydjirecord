@@ -9,9 +9,17 @@ from pathlib import Path
 
 import pytest
 
+import pydjirecord.__main__ as cli
 from pydjirecord.__main__ import build_parser, main
 
 SAMPLE_LOG = Path(__file__).parent / "fixtures" / "minimal_v14.txt"
+
+
+@pytest.fixture(autouse=True)
+def _isolate_cli_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep CLI tests deterministic regardless of local .env/API key state."""
+    monkeypatch.setattr(cli, "load_dotenv", lambda: None)
+    monkeypatch.delenv("DJI_API_KEY", raising=False)
 
 
 class TestInfoOutput:

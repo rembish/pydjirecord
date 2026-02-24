@@ -169,6 +169,13 @@ Run a single test:
 .venv/bin/pytest tests/test_cli.py::TestJsonOutput -xvs
 ```
 
+Run integration and mutation-regression tests against a private local corpus
+without committing logs into the repo:
+
+```bash
+DJI_LOGS_DIR=/path/to/your/logs .venv/bin/pytest -m integration tests/test_djilog.py tests/test_mutation_regression.py -xvs
+```
+
 ## License
 
 [MIT](LICENSE)
