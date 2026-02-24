@@ -231,28 +231,28 @@ class Details:
     field notes below.
 
     ``total_distance``
-        As stored in the binary header (metres).  The DJI C++ reference
-        library ignores this field and recomputes total distance from the
-        GPS track in the decrypted records (``cumulativeFlightDistance`` on
-        the last frame).  In practice the header value is often near zero or
-        otherwise inaccurate.  Prefer ``FrameOSD.cumulative_distance`` from
-        the last decoded frame for a reliable figure.
+        Converted from the binary header (stored as kilometres, exposed
+        here in metres).  Reasonably accurate in most logs — verified
+        against frame-computed ``cumulative_distance`` across 440+ flights
+        with a consistent 1:1 ratio.  A small number of logs carry stale
+        or cumulative values from previous flights.  The DJI C++ reference
+        library ignores this field and recomputes from the GPS track, so
+        prefer ``FrameOSD.cumulative_distance`` from the last decoded frame
+        when decrypted records are available.
 
     ``capture_num``
         As stored in the binary header.  The DJI Fly app does not populate
-        this field — it is always 0 for Mavic Air 2 and similar aircraft.
-        The C++ reference library does not use it either.  Per-frame photo
-        events are available via ``FrameCamera.is_photo`` in the decrypted
-        record stream (requires API key).
+        this field — it is always 0 across all tested aircraft (Mavic Air 2,
+        Mini 4 Pro).  Per-frame photo events are available via
+        ``FrameCamera.is_photo`` in the decrypted record stream.
 
     ``video_time``
-        As stored in the binary header.  This is **not** the per-flight
-        recording duration.  Observed values frequently exceed the flight
-        time and are non-monotonic across consecutive flights, suggesting
-        the field is some form of cumulative SD-card counter that resets on
-        card format or replacement.  The C++ reference library does not use
-        it.  Per-frame recording state is available via ``FrameCamera.is_video``
-        in the decrypted record stream (requires API key).
+        Raw value from the binary header.  This is **not** the per-flight
+        recording duration — the ratio to actual in-frame recording time
+        ranges from 1x to over 100x with no consistent unit.  The DJI C++
+        reference library does not use it.  Per-frame recording state is
+        available via ``FrameCamera.is_video`` in the decrypted record
+        stream.
     """
 
     sub_street: str = ""
@@ -309,7 +309,7 @@ class Details:
 
         longitude = r.read_f64()
         latitude = r.read_f64()
-        total_distance = r.read_f32()
+        total_distance = r.read_f32() * 1000.0  # stored as km, expose as m
         total_time = r.read_i32() / 1000.0
         max_height = r.read_f32()
         max_horizontal_speed = r.read_f32()

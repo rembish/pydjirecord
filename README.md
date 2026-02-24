@@ -130,15 +130,17 @@ records = log.records(keychains)
 
 ## Known Limitations
 
-### Header fields that are unreliable
+### Header field caveats
 
-Several fields in the `Details` header block (readable without decryption) are written by the DJI app and are not always accurate:
+The `Details` header block is readable without decryption. Most fields are reliable, but some are not (verified across 467 real flight logs):
 
-| Field | Problem | Reliable alternative |
-|-------|---------|----------------------|
-| `details.total_distance` | Almost always near-zero or incorrect. The DJI C++ reference library ignores it and recomputes distance from the GPS track. | `frames[-1].osd.cumulative_distance` — running GPS track length accumulated by the frame builder. |
-| `details.capture_num` | Always 0 for DJI Fly app logs (Mavic Air 2 and similar). The app does not populate this field. | `frame.camera.is_photo` per frame (requires decryption). |
-| `details.video_time` | Not per-flight recording duration. Values frequently exceed flight time and are non-monotonic across consecutive flights, suggesting a cumulative SD-card counter that resets on card format or swap. The C++ reference library does not use it. | `frame.camera.is_video` per frame (requires decryption). |
+| Field | Status | Notes |
+|-------|--------|-------|
+| `details.total_distance` | Approximate | Stored in the binary as kilometres; converted to metres on parse. Matches frame-computed distance within float32 precision in 95%+ of logs. A small number carry stale values from prior flights. The DJI C++ library ignores this field and recomputes from the GPS track. Prefer `frames[-1].osd.cumulative_distance` when decrypted frames are available. |
+| `details.max_height` | Reliable | Matches frame-computed maximum within 1-2 m in all tested logs. |
+| `details.max_horizontal_speed` | Reliable | Matches frame-computed maximum in all tested logs. |
+| `details.capture_num` | Broken | Always 0 for DJI Fly app logs. Use `frame.camera.is_photo` per frame instead (requires decryption). |
+| `details.video_time` | Unreliable | Not per-flight recording duration. The ratio to actual in-frame recording time ranges from 1x to over 100x with no consistent unit. Use `frame.camera.is_video` per frame instead (requires decryption). |
 
 ### Network access required for decryption
 

@@ -141,7 +141,7 @@ class TestDetails:
         buf += struct.pack("<q", ts)  # start_time
         buf += struct.pack("<d", 12.345)  # longitude
         buf += struct.pack("<d", 56.789)  # latitude
-        buf += struct.pack("<f", 1500.0)  # total_distance
+        buf += struct.pack("<f", 1.5)  # total_distance (km in binary)
         buf += struct.pack("<i", 60000)  # total_time (ms)
         buf += struct.pack("<f", 120.0)  # max_height
         buf += struct.pack("<f", 15.5)  # max_horizontal_speed
