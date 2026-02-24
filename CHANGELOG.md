@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2026-02-24
+
+### Changed
+
+- `virtual_stick_pb2.py` is now generated from `src/pydjirecord/proto/virtual_stick.proto`
+  (the canonical `.proto` definition); the hand-rolled `descriptor_pb2` boilerplate has
+  been removed. Regenerate with `grpcio-tools` after editing the `.proto` file.
+- `[proto]` optional dependency tightened to `protobuf>=6.0` (generated code requires
+  a 6.x runtime)
+- `grpcio-tools>=1.60` added to `[dev]` optional dependencies for proto regeneration
+
 ## [0.6.0] - 2026-02-24
 
 ### Added

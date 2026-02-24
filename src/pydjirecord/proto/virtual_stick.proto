@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package dji.flightrecord;
+
+// VirtualStick flight control command sent from the app to the aircraft.
+// Corresponds to record type 33 (AppVirtualStickDataType) in DJI flight logs.
+message VirtualStickFlightControlData {
+    float pitch                       = 1;
+    float roll                        = 2;
+    float yaw                         = 3;
+    float vertical_throttle           = 4;
+    int32 vertical_control_mode       = 5;
+    int32 roll_pitch_control_mode     = 6;
+    int32 yaw_control_mode            = 7;
+    int32 roll_pitch_coordinate_system = 8;
+}

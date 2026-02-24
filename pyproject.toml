@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pydjirecord"
-version = "0.6.0"
+version = "0.6.1"
 description = "Python parser for DJI drone flight log files"
 requires-python = ">=3.12"
 license = "MIT"
@@ -24,9 +24,10 @@ dev = [
     "pytest-cov>=5.0",
     "mypy>=1.10",
     "ruff>=0.5",
+    "grpcio-tools>=1.60",
 ]
 proto = [
-    "protobuf>=4.21",
+    "protobuf>=6.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -64,6 +65,10 @@ disallow_untyped_defs = true
 [[tool.mypy.overrides]]
 module = ["Crypto.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["pydjirecord.record.virtual_stick_pb2"]
+ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
