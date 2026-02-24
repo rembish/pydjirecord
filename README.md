@@ -130,18 +130,7 @@ records = log.records(keychains)
 
 ## Status
 
-This is a work-in-progress port. The core parsing pipeline, frame builder, and all export formats work. The following parts from the upstream Rust [dji-log-parser](https://github.com/lvauvillier/dji-log-parser) are not yet implemented:
-
-**Record types not yet parsed** (returned as raw bytes):
-
-- Deform (6) — arm fold/stretch state
-- RCGPS (11) — remote controller GPS
-- VirtualStick (33) — virtual stick flight control inputs
-
-**CLI features**:
-
-- Image/thumbnail extraction with EXIF geotagging (`--images`, `--thumbnails`)
-- Custom keychain API overrides (`--api-custom-department`, `--api-custom-version`)
+The core parsing pipeline, frame builder, and all export formats work. Record types not covered by the upstream binary spec are returned as raw bytes.
 
 **Testing coverage**:
 

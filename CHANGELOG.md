@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.2] - 2026-02-24
+
+### Changed
+
+- README Status section cleaned up: removed stale TODOs for record types and CLI
+  features that have since been implemented or lack upstream documentation
+- Drop `setuptools-scm` from build-system requirements (unused; static version is
+  set directly in `pyproject.toml`)
+- Add `build>=1.0` to `[dev]` optional dependencies so `make build` works out of
+  the box after `make install`
+
 ## [0.6.1] - 2026-02-24
 
 ### Changed
