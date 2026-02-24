@@ -7,7 +7,7 @@ MYPY := $(VENV)/bin/mypy
 
 SRC := src/ tests/
 
-.PHONY: help venv install format lint typecheck test check build clean distclean
+.PHONY: help venv install format lint typecheck test integration check build clean distclean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -31,6 +31,9 @@ typecheck: ## Run mypy strict type checking
 
 test: ## Run tests with coverage
 	$(PYTEST)
+
+integration: ## Run integration + mutation-regression tests against a private corpus (set DJI_LOGS_DIR=)
+	DJI_LOGS_DIR=$(DJI_LOGS_DIR) $(PYTEST) -m integration --no-cov -xvs tests/test_djilog.py tests/test_mutation_regression.py
 
 check: format lint typecheck test ## Run all checks (format + lint + typecheck + test)
 

@@ -179,6 +179,7 @@ make check          # format + lint + typecheck + test
 make format         # ruff format + autofix
 make lint           # ruff check
 make typecheck      # mypy strict
+make integration    # integration + mutation-regression tests, no coverage floor
 make test           # pytest with coverage
 make build          # build sdist and wheel into dist/
 ```
@@ -200,7 +201,14 @@ Run integration and mutation-regression tests against a private local corpus
 without committing logs into the repo:
 
 ```bash
-DJI_LOGS_DIR=/path/to/your/logs .venv/bin/pytest -m integration tests/test_djilog.py tests/test_mutation_regression.py -xvs
+make integration DJI_LOGS_DIR=/path/to/your/logs
+```
+
+The `integration` target passes `--no-cov` so partial runs don't trip the
+coverage floor. Equivalent manual invocation:
+
+```bash
+DJI_LOGS_DIR=/path/to/your/logs .venv/bin/pytest -m integration --no-cov -xvs tests/test_djilog.py tests/test_mutation_regression.py
 ```
 
 ## License
