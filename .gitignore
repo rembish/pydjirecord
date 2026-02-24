@@ -10,4 +10,3 @@ build/
 .coverage
 htmlcov/
 *.egg
-examples/

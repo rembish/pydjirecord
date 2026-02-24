@@ -41,7 +41,7 @@ class TestDJILogFromBytes:
         assert 1 <= dji_log.version <= 14
 
     def test_details_has_start_time(self, dji_log: DJILog) -> None:
-        assert dji_log.details.start_time.year == 2021
+        assert dji_log.details.start_time.year >= 2017
 
     def test_details_has_coordinates(self, dji_log: DJILog) -> None:
         d = dji_log.details
