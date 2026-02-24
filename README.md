@@ -139,7 +139,7 @@ The `Details` header block is readable without decryption. Most fields are relia
 | `details.total_distance` | Approximate | Stored in the binary as kilometres; converted to metres on parse. Matches frame-computed distance within float32 precision in 95%+ of logs. A small number carry stale values from prior flights. The DJI C++ library ignores this field and recomputes from the GPS track. Prefer `frames[-1].osd.cumulative_distance` when decrypted frames are available. |
 | `details.max_height` | Reliable | Matches frame-computed maximum within 1-2 m in all tested logs. |
 | `details.max_horizontal_speed` | Reliable | Matches frame-computed maximum in all tested logs. |
-| `details.capture_num` | Broken | Always 0 for DJI Fly app logs. Use `frame.camera.is_photo` per frame instead (requires decryption). |
+| `details.capture_num` | Broken | Always 0 for DJI Fly app logs. When frames are available, `FrameDetails.photo_num` is computed from Camera `remain_photo_num` delta and is accurate. |
 | `details.video_time` | Unreliable | Not per-flight recording duration. The ratio to actual in-frame recording time ranges from 1x to over 100x with no consistent unit. When frames are available, `FrameDetails.video_time` is computed from Camera `record_time` segments and is accurate. |
 
 ### Network access required for decryption

@@ -153,6 +153,7 @@ def records_to_frames(records: list[Record], details: Details) -> list[Frame]:
             frame.camera.sd_card_is_inserted = data.has_sd_card
             frame.camera.sd_card_state = data.sd_card_state
             frame.camera.record_time = data.record_time
+            frame.camera.remain_photo_num = data.remain_photo_num
 
         elif isinstance(data, (RC, RCDisplayField)):
             frame.rc.aileron = data.aileron
@@ -347,3 +348,25 @@ def compute_video_time(frames: list[Frame]) -> float:
         total += segment_max
 
     return total
+
+
+def compute_photo_num(frames: list[Frame]) -> int:
+    """Compute total photos taken from Camera ``remain_photo_num`` delta.
+
+    ``remain_photo_num`` is a running counter of remaining photo capacity on
+    the SD card.  The difference between the first and last non-zero values
+    gives the exact number of photos taken during the flight.
+    """
+    first: int | None = None
+    last: int | None = None
+
+    for frame in frames:
+        rpn = frame.camera.remain_photo_num
+        if rpn > 0:
+            if first is None:
+                first = rpn
+            last = rpn
+
+    if first is None or last is None:
+        return 0
+    return max(0, first - last)

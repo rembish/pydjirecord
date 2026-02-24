@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.6] - 2026-02-24
+
+### Added
+
+- `FrameCamera.remain_photo_num` — per-frame remaining photo capacity from
+  the Camera record.
+- `compute_photo_num(frames)` in `frame.builder` — computes accurate photo
+  count from the delta of `remain_photo_num` (first non-zero minus last).
+  Verified exact against SD card photo counts across 5 real flights.
+- `FrameDetails.photo_num` now computed from Camera `remain_photo_num` delta
+  when frames are available, replacing the broken header value (always 0
+  for DJI Fly app logs).
+- Tests for photo_num computation.
+
 ## [0.7.5] - 2026-02-24
 
 ### Fixed

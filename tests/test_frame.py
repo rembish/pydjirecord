@@ -6,7 +6,7 @@ import math
 
 from pydjirecord.frame import Frame
 from pydjirecord.frame.battery import FrameBattery
-from pydjirecord.frame.builder import _finalize, _reset, compute_video_time, records_to_frames
+from pydjirecord.frame.builder import _finalize, _reset, compute_photo_num, compute_video_time, records_to_frames
 from pydjirecord.layout.details import Details, ProductType
 from pydjirecord.record import Record
 from pydjirecord.record.app_tip import AppTip
@@ -323,7 +323,12 @@ class TestReset:
         assert frame.app.warn == ""
 
 
-def _make_camera(*, is_recording: bool = False, record_time: int = 0) -> Camera:
+def _make_camera(
+    *,
+    is_recording: bool = False,
+    record_time: int = 0,
+    remain_photo_num: int = 0,
+) -> Camera:
     """Build a Camera record with the given recording state and record_time."""
     return Camera(
         is_shooting_single_photo=False,
@@ -332,6 +337,7 @@ def _make_camera(*, is_recording: bool = False, record_time: int = 0) -> Camera:
         sd_card_state=SDCardState.NORMAL,
         work_mode=CameraWorkMode.RECORDING if is_recording else CameraWorkMode.CAPTURE,
         record_time=record_time,
+        remain_photo_num=remain_photo_num,
     )
 
 
@@ -407,3 +413,53 @@ class TestVideoTime:
         ]
         frames = records_to_frames(records, details)
         assert frames[0].camera.record_time == 42
+
+
+class TestPhotoNum:
+    def test_no_photos_zero(self) -> None:
+        """No remain_photo_num data → photo_num is 0."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(record_type=4, data=_make_camera(remain_photo_num=0)),
+            Record(record_type=1, data=_make_osd(fly_time=1.0)),
+        ]
+        frames = records_to_frames(records, details)
+        assert compute_photo_num(frames) == 0
+
+    def test_no_change_zero(self) -> None:
+        """remain_photo_num stays constant → 0 photos."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(record_type=4, data=_make_camera(remain_photo_num=2200)),
+            Record(record_type=1, data=_make_osd(fly_time=1.0)),
+            Record(record_type=4, data=_make_camera(remain_photo_num=2200)),
+            Record(record_type=1, data=_make_osd(fly_time=2.0)),
+        ]
+        frames = records_to_frames(records, details)
+        assert compute_photo_num(frames) == 0
+
+    def test_counts_delta(self) -> None:
+        """remain_photo_num decreases → delta is the photo count."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            # First OSD establishes frame_index; Camera before it sets baseline
+            Record(record_type=1, data=_make_osd(fly_time=1.0)),
+            Record(record_type=4, data=_make_camera(remain_photo_num=2200)),
+            Record(record_type=1, data=_make_osd(fly_time=2.0)),
+            Record(record_type=4, data=_make_camera(remain_photo_num=2197)),
+            Record(record_type=1, data=_make_osd(fly_time=3.0)),
+            Record(record_type=4, data=_make_camera(remain_photo_num=2192)),
+            Record(record_type=1, data=_make_osd(fly_time=4.0)),
+        ]
+        frames = records_to_frames(records, details)
+        assert compute_photo_num(frames) == 8  # 2200 - 2192
+
+    def test_remain_photo_num_in_frame(self) -> None:
+        """Camera.remain_photo_num propagates to FrameCamera."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(record_type=4, data=_make_camera(remain_photo_num=1500)),
+            Record(record_type=1, data=_make_osd(fly_time=1.0)),
+        ]
+        frames = records_to_frames(records, details)
+        assert frames[0].camera.remain_photo_num == 1500

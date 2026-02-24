@@ -18,3 +18,4 @@ class FrameCamera:
     sd_card_is_inserted: bool = False
     sd_card_state: SDCardState | None = None
     record_time: int = 0
+    remain_photo_num: int = 0

@@ -14,6 +14,12 @@ if TYPE_CHECKING:
 class FrameDetails:
     """Simplified details for frame-mode exports.
 
+    ``photo_num``
+        When constructed via :meth:`from_details` with *frames*, this is the
+        accurate photo count computed from Camera ``remain_photo_num`` delta.
+        Without frames it falls back to the raw header value (always 0 for
+        DJI Fly app logs).
+
     ``video_time``
         When constructed via :meth:`from_details` with *frames*, this is the
         accurate total recording duration computed from Camera ``record_time``
@@ -40,10 +46,12 @@ class FrameDetails:
         d: Details,
         frames: list[_frame_mod.Frame] | None = None,
     ) -> FrameDetails:
+        photo_num = d.capture_num
         video_time: float = float(d.video_time)
         if frames is not None:
-            from .builder import compute_video_time
+            from .builder import compute_photo_num, compute_video_time
 
+            photo_num = compute_photo_num(frames)
             video_time = compute_video_time(frames)
 
         return cls(
@@ -52,7 +60,7 @@ class FrameDetails:
             max_height=d.max_height,
             max_horizontal_speed=d.max_horizontal_speed,
             max_vertical_speed=d.max_vertical_speed,
-            photo_num=d.capture_num,
+            photo_num=photo_num,
             video_time=video_time,
             aircraft_name=d.aircraft_name,
             aircraft_sn=d.aircraft_sn,
