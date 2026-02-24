@@ -81,9 +81,7 @@ def records_to_frames(records: list[Record], details: Details) -> list[Frame]:
             if data.is_gps_valid and data.gps_level >= 3 and (data.latitude != 0.0 or data.longitude != 0.0):
                 curr = (data.latitude, data.longitude)
                 if _prev_gps is not None:
-                    frame.osd.cumulative_distance += haversine_distance(
-                        _prev_gps[0], _prev_gps[1], curr[0], curr[1]
-                    )
+                    frame.osd.cumulative_distance += haversine_distance(_prev_gps[0], _prev_gps[1], curr[0], curr[1])
                 _prev_gps = curr
 
             frame.osd.altitude = data.altitude + frame.home.altitude
