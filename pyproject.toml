@@ -39,6 +39,7 @@ where = ["src"]
 target-version = "py310"
 line-length = 120
 src = ["src", "tests"]
+extend-exclude = ["src/pydjirecord/record/virtual_stick_pb2.py"]
 
 [tool.ruff.lint]
 select = [

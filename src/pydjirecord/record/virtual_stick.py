@@ -1,4 +1,4 @@
-"""Record type 33 – VirtualStick (AppVirtualStickDataType).
+"""Record type 33 - VirtualStick (AppVirtualStickDataType).
 
 The payload is a protobuf-encoded ``VirtualStickFlightControlData`` message.
 The canonical definition lives in ``src/pydjirecord/proto/virtual_stick.proto``;

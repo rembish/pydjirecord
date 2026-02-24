@@ -8,7 +8,6 @@ import struct
 import pytest
 
 from pydjirecord.record import Record, parse_record
-from pydjirecord.record.rc_gps import RCGPS, RCGPSTime
 from pydjirecord.record.app_gps import AppGPS
 from pydjirecord.record.app_tip import AppTip
 from pydjirecord.record.app_warn import AppWarn
@@ -33,6 +32,7 @@ from pydjirecord.record.osd import (
 )
 from pydjirecord.record.rc import RC
 from pydjirecord.record.rc_display_field import RCDisplayField
+from pydjirecord.record.rc_gps import RCGPS, RCGPSTime
 from pydjirecord.record.smart_battery import SmartBattery
 
 
@@ -403,8 +403,8 @@ class TestRCGPS:
         year: int = 2021,
         month: int = 5,
         day: int = 25,
-        lat: int = 413000000,   # 41.3° × 1e7
-        lon: int = 198000000,   # 19.8° × 1e7
+        lat: int = 413000000,  # 41.3 deg * 1e7
+        lon: int = 198000000,  # 19.8 deg * 1e7
         vx: int = 100,
         vy: int = -50,
         gps_num: int = 8,
@@ -413,9 +413,19 @@ class TestRCGPS:
     ) -> bytes:
         return struct.pack(
             "<BBBHBBiiiiBfH",
-            hour, minute, second, year, month, day,
-            lat, lon, vx, vy,
-            gps_num, accuracy, valid_data,
+            hour,
+            minute,
+            second,
+            year,
+            month,
+            day,
+            lat,
+            lon,
+            vx,
+            vy,
+            gps_num,
+            accuracy,
+            valid_data,
         )
 
     def test_basic_parse(self) -> None:
@@ -458,7 +468,7 @@ class TestRCGPS:
 
 
 class TestVirtualStick:
-    """Tests for VirtualStick (type 33) – requires protobuf package."""
+    """Tests for VirtualStick (type 33) - requires protobuf package."""
 
     @staticmethod
     def _make_vs_bytes(

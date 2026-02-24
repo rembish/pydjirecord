@@ -24,17 +24,17 @@ def _make_minimal_v14_log() -> bytes:
     """
     from pydjirecord.utils import crc64
 
-    _XOR_MAGIC = 0x123456789ABCDEF0
-    _MASK64 = 0xFFFFFFFFFFFFFFFF
-    _FIRST_BYTE = 0x41  # arbitrary non-zero seed byte for XOR
+    xor_magic = 0x123456789ABCDEF0
+    mask64 = 0xFFFFFFFFFFFFFFFF
+    first_byte = 0x41  # arbitrary non-zero seed byte for XOR
 
     def _xor_encode(plaintext: bytes, record_type: int = 0) -> bytes:
         """Mirror of xor_decode — XOR is self-inverse."""
-        seed = (_FIRST_BYTE + record_type) & 0xFF
-        key_input = ((_XOR_MAGIC * _FIRST_BYTE) & _MASK64).to_bytes(8, "little")
+        seed = (first_byte + record_type) & 0xFF
+        key_input = ((xor_magic * first_byte) & mask64).to_bytes(8, "little")
         key = crc64(seed, key_input).to_bytes(8, "little")
         encrypted = bytes(b ^ key[i % 8] for i, b in enumerate(plaintext))
-        return bytes([_FIRST_BYTE]) + encrypted
+        return bytes([first_byte]) + encrypted
 
     # ── Details binary (380 bytes for version > 5) ──────────────────────────
     # Field layout matches Details.from_bytes() for version >= 6.
@@ -44,42 +44,42 @@ def _make_minimal_v14_log() -> bytes:
     p += 20  # street
     p += 20  # city
     p += 20  # area
-    p += 3   # is_favorite, is_new, needs_upload
-    p += 4   # record_line_count (i32)
-    p += 4   # detail_info_checksum (i32)
+    p += 3  # is_favorite, is_new, needs_upload
+    p += 4  # record_line_count (i32)
+    p += 4  # detail_info_checksum (i32)
 
     # 2021-05-25T18:31:35Z → ms since epoch
     struct.pack_into("<q", d, p, 1621967495000)
-    p += 8   # ts_millis (i64)
+    p += 8  # ts_millis (i64)
 
     struct.pack_into("<d", d, p, 19.8)
-    p += 8   # longitude (f64)
+    p += 8  # longitude (f64)
     struct.pack_into("<d", d, p, 41.3)
-    p += 8   # latitude (f64)
+    p += 8  # latitude (f64)
     struct.pack_into("<f", d, p, 1000.0)
-    p += 4   # total_distance (f32)
+    p += 4  # total_distance (f32)
     struct.pack_into("<i", d, p, 300000)
-    p += 4   # total_time ms (i32)
+    p += 4  # total_time ms (i32)
     struct.pack_into("<f", d, p, 50.0)
-    p += 4   # max_height (f32)
+    p += 4  # max_height (f32)
     struct.pack_into("<f", d, p, 10.0)
-    p += 4   # max_horizontal_speed (f32)
+    p += 4  # max_horizontal_speed (f32)
     struct.pack_into("<f", d, p, 5.0)
-    p += 4   # max_vertical_speed (f32)
-    p += 4   # capture_num (i32)
-    p += 8   # video_time (i64)
-    p += 16  # _moment_pic_image_buf_len (4×i32)
-    p += 16  # _moment_pic_shrink_buf_len (4×i32)
-    p += 32  # moment_pic_longitude (4×f64, radians)
-    p += 32  # moment_pic_latitude (4×f64, radians)
-    p += 8   # _analysis_offset (i64)
+    p += 4  # max_vertical_speed (f32)
+    p += 4  # capture_num (i32)
+    p += 8  # video_time (i64)
+    p += 16  # _moment_pic_image_buf_len (4xi32)
+    p += 16  # _moment_pic_shrink_buf_len (4xi32)
+    p += 32  # moment_pic_longitude (4xf64, radians)
+    p += 32  # moment_pic_latitude (4xf64, radians)
+    p += 8  # _analysis_offset (i64)
     p += 16  # _user_api_center_id_md5 (16 bytes)
 
     struct.pack_into("<f", d, p, 0.0)
-    p += 4   # take_off_altitude (f32)
+    p += 4  # take_off_altitude (f32)
     d[p] = 76  # product_type = MINI2 (76)
     p += 1
-    p += 8   # _activation_timestamp (i64)
+    p += 8  # _activation_timestamp (i64)
 
     name = b"Mini 2"
     d[p : p + len(name)] = name
@@ -103,12 +103,7 @@ def _make_minimal_v14_log() -> bytes:
 
     # ── AuxiliaryInfo inner payload ──────────────────────────────────────────
     # version_data(1B) + info_length(2B) + info_data(380B) + sig_length(2B)
-    info_payload = (
-        bytes([1])
-        + struct.pack("<H", 380)
-        + details_bytes
-        + struct.pack("<H", 0)
-    )  # 385 bytes
+    info_payload = bytes([1]) + struct.pack("<H", 380) + details_bytes + struct.pack("<H", 0)  # 385 bytes
 
     xor_info = _xor_encode(info_payload, record_type=0)  # 386 bytes
     # AuxiliaryInfo block: magic(0, 1B) + size(2B) + encoded(386B) = 389 bytes
@@ -126,7 +121,7 @@ def _make_minimal_v14_log() -> bytes:
     records_start = 100 + len(detail_section)
     prefix = bytearray(100)
     struct.pack_into("<Q", prefix, 0, records_start)  # _detail_offset
-    struct.pack_into("<B", prefix, 10, 14)             # version = 14
+    struct.pack_into("<B", prefix, 10, 14)  # version = 14
 
     return bytes(prefix) + detail_section
 
