@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import base64
+import logging
 from typing import TYPE_CHECKING
 
 from .api import EncodedKeychainFeaturePoint, KeychainFeaturePoint, KeychainsRequest
 from .feature_point import FeaturePoint, feature_point_for_record
+
+_log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -38,8 +41,20 @@ class Keychain:
     def from_feature_points(cls, entries: Sequence[KeychainFeaturePoint]) -> Keychain:
         kc = cls()
         for entry in entries:
-            iv = base64.b64decode(entry.aes_iv)
-            key = base64.b64decode(entry.aes_key)
+            try:
+                iv = base64.b64decode(entry.aes_iv)
+                key = base64.b64decode(entry.aes_key)
+            except Exception:
+                _log.warning("keychain: skipping feature point %d (invalid base64)", entry.feature_point)
+                continue
+            if len(key) != 32 or len(iv) != 16:
+                _log.warning(
+                    "keychain: skipping feature point %d (key=%d bytes, iv=%d bytes)",
+                    entry.feature_point,
+                    len(key),
+                    len(iv),
+                )
+                continue
             kc._map[entry.feature_point] = (iv, key)
         return kc
 

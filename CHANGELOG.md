@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] - 2026-02-24
+
+### Fixed
+
+- **Cache eviction negative-slice bug**: When the cache had fewer entries than
+  the cap (e.g. 200 entries, cap 256), a negative slice index caused most
+  entries to be deleted instead of none.
+- **Malformed keychain crash**: Invalid AES key/IV sizes or bad base64 in
+  keychain entries now skipped with a warning instead of crashing in
+  `AES.new()`.
+- **CLI exception handling**: Narrowed bare `except Exception` in info mode to
+  specific types (`DJILogError`, `httpx.HTTPError`, `ValueError`, `OSError`)
+  and added a stderr warning when falling back to header-only display.
+
 ## [1.0.0] - 2026-02-24
 
 ### Fixed

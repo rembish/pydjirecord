@@ -159,12 +159,13 @@ def _evict_cache(cache_dir: Path) -> None:
 
     # LRU cap: remove oldest entries beyond the limit
     over = len(remaining) - _CACHE_MAX_ENTRIES
-    for p in remaining[:over]:
-        try:
-            p.unlink()
-            _log.debug("keychain cache evict (lru): %s", p.name[:12])
-        except OSError:
-            pass
+    if over > 0:
+        for p in remaining[:over]:
+            try:
+                p.unlink()
+                _log.debug("keychain cache evict (lru): %s", p.name[:12])
+            except OSError:
+                pass
 
 
 def _parse_data(data: list[list[dict[str, str]]]) -> list[list[KeychainFeaturePoint]]:

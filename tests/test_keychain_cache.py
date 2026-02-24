@@ -185,6 +185,24 @@ class TestCacheEviction:
         # Oldest 2 (entry_0, entry_1) should be evicted
         assert remaining == ["entry_2.json", "entry_3.json", "entry_4.json"]
 
+    def test_below_cap_keeps_all_entries(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """When count is below the cap, no entries are evicted."""
+        monkeypatch.setattr("pydjirecord.keychain.api._CACHE_MAX_ENTRIES", 256)
+        cache_dir = tmp_path / "keychains"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create 200 fresh files — all should survive
+        now = time.time()
+        for i in range(200):
+            p = cache_dir / f"entry_{i:04d}.json"
+            p.write_text("{}")
+            os.utime(p, (now - i, now - i))
+
+        _evict_cache(cache_dir)
+
+        remaining = list(cache_dir.glob("*.json"))
+        assert len(remaining) == 200
+
     def test_eviction_runs_on_cache_write(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, req: KeychainsRequest
     ) -> None:
@@ -201,3 +219,57 @@ class TestCacheEviction:
         req.fetch("key", cache=True)
 
         assert not old.exists()
+
+
+class TestKeychainValidation:
+    def test_valid_key_iv_accepted(self) -> None:
+        import base64
+
+        from pydjirecord.keychain import Keychain
+        from pydjirecord.keychain.api import KeychainFeaturePoint
+
+        key_b64 = base64.b64encode(b"\x00" * 32).decode()
+        iv_b64 = base64.b64encode(b"\x00" * 16).decode()
+        entries = [KeychainFeaturePoint(feature_point=1, aes_key=key_b64, aes_iv=iv_b64)]
+        kc = Keychain.from_feature_points(entries)
+        assert kc.get(1) is not None
+
+    def test_wrong_key_length_skipped(self) -> None:
+        import base64
+
+        from pydjirecord.keychain import Keychain
+        from pydjirecord.keychain.api import KeychainFeaturePoint
+
+        key_b64 = base64.b64encode(b"\x00" * 16).decode()  # 16 bytes, not 32
+        iv_b64 = base64.b64encode(b"\x00" * 16).decode()
+        entries = [KeychainFeaturePoint(feature_point=1, aes_key=key_b64, aes_iv=iv_b64)]
+        kc = Keychain.from_feature_points(entries)
+        assert kc.get(1) is None
+
+    def test_wrong_iv_length_skipped(self) -> None:
+        import base64
+
+        from pydjirecord.keychain import Keychain
+        from pydjirecord.keychain.api import KeychainFeaturePoint
+
+        key_b64 = base64.b64encode(b"\x00" * 32).decode()
+        iv_b64 = base64.b64encode(b"\x00" * 8).decode()  # 8 bytes, not 16
+        entries = [KeychainFeaturePoint(feature_point=1, aes_key=key_b64, aes_iv=iv_b64)]
+        kc = Keychain.from_feature_points(entries)
+        assert kc.get(1) is None
+
+    def test_empty_key_skipped(self) -> None:
+        from pydjirecord.keychain import Keychain
+        from pydjirecord.keychain.api import KeychainFeaturePoint
+
+        entries = [KeychainFeaturePoint(feature_point=1, aes_key="", aes_iv="")]
+        kc = Keychain.from_feature_points(entries)
+        assert kc.get(1) is None
+
+    def test_invalid_base64_skipped(self) -> None:
+        from pydjirecord.keychain import Keychain
+        from pydjirecord.keychain.api import KeychainFeaturePoint
+
+        entries = [KeychainFeaturePoint(feature_point=1, aes_key="!!!invalid!!!", aes_iv="!!!invalid!!!")]
+        kc = Keychain.from_feature_points(entries)
+        assert kc.get(1) is None

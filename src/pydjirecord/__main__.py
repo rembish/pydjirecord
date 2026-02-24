@@ -8,9 +8,11 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import httpx
 from dotenv import load_dotenv
 
 from .djilog import DJILog
+from .error import DJILogError
 from .export.csv import export_csv
 from .export.geojson import export_geojson
 from .export.json import export_json
@@ -165,7 +167,8 @@ def main(argv: list[str] | None = None) -> None:
             elif api_key:
                 keychains = _get_keychains(log, api_key, custom_department, custom_version, cache=use_cache)
                 frames = log.frames(keychains)
-        except Exception:
+        except (DJILogError, httpx.HTTPError, ValueError, OSError) as exc:
+            print(f"Warning: frame decryption failed ({exc}), showing header values only", file=sys.stderr)
             frames = None
         _print_info(log, frames)
         return
