@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
+import httpx
+import pytest
+
+from pydjirecord.error import ApiError, ApiKeyError
 from pydjirecord.keychain import FeaturePoint, Keychain, feature_point_for_record
 from pydjirecord.keychain.api import (
     EncodedKeychainFeaturePoint,
     KeychainFeaturePoint,
     KeychainsRequest,
+    _parse_feature_point_value,
 )
 
 
@@ -143,3 +150,85 @@ class TestApiSerialization:
         assert "keychainsArray" in body
         assert len(body["keychainsArray"]) == 1
         assert body["keychainsArray"][0][0]["aesCiphertext"] == "YWJj"
+
+
+# ---------------------------------------------------------------------------
+# _parse_feature_point_value
+# ---------------------------------------------------------------------------
+
+
+class TestParseFeaturePointValue:
+    def test_standard_name_returns_trailing_int(self) -> None:
+        assert _parse_feature_point_value("FR_Standardization_Feature_Base_1") == 1
+
+    def test_unknown_suffix_returns_plaintext_default(self) -> None:
+        assert _parse_feature_point_value("no_number_here_xyz") == 8
+
+    def test_empty_string_returns_plaintext_default(self) -> None:
+        assert _parse_feature_point_value("") == 8
+
+
+# ---------------------------------------------------------------------------
+# KeychainsRequest.fetch  (httpx monkeypatched — no real network calls)
+# ---------------------------------------------------------------------------
+
+
+def _mock_response(status_code: int, json_data: object = None, text: str = "") -> MagicMock:
+    """Build a minimal httpx.Response-like mock."""
+    resp = MagicMock()
+    resp.status_code = status_code
+    resp.json.return_value = json_data
+    resp.text = text
+    return resp
+
+
+class TestFetch:
+    @pytest.fixture()
+    def req(self) -> KeychainsRequest:
+        efp = EncodedKeychainFeaturePoint(feature_point=1, aes_ciphertext="dGVzdA==")
+        return KeychainsRequest(version=2, department=3, keychains=[[efp]])
+
+    def test_http_error_raises_api_error(self, monkeypatch: pytest.MonkeyPatch, req: KeychainsRequest) -> None:
+        monkeypatch.setattr(httpx, "post", MagicMock(side_effect=httpx.ConnectError("timeout")))
+        with pytest.raises(ApiError, match="Network error"):
+            req.fetch("key")
+
+    def test_403_raises_api_key_error(self, monkeypatch: pytest.MonkeyPatch, req: KeychainsRequest) -> None:
+        monkeypatch.setattr(httpx, "post", MagicMock(return_value=_mock_response(403)))
+        with pytest.raises(ApiKeyError):
+            req.fetch("key")
+
+    def test_non_200_raises_api_error(self, monkeypatch: pytest.MonkeyPatch, req: KeychainsRequest) -> None:
+        monkeypatch.setattr(httpx, "post", MagicMock(return_value=_mock_response(500, text="oops")))
+        with pytest.raises(ApiError, match="500"):
+            req.fetch("key")
+
+    def test_result_code_nonzero_raises_api_error(self, monkeypatch: pytest.MonkeyPatch, req: KeychainsRequest) -> None:
+        body = {"result": {"code": 1, "msg": "bad key"}, "data": None}
+        monkeypatch.setattr(httpx, "post", MagicMock(return_value=_mock_response(200, body)))
+        with pytest.raises(ApiError, match="bad key"):
+            req.fetch("key")
+
+    def test_missing_data_returns_empty(self, monkeypatch: pytest.MonkeyPatch, req: KeychainsRequest) -> None:
+        body: dict = {"data": None}
+        monkeypatch.setattr(httpx, "post", MagicMock(return_value=_mock_response(200, body)))
+        assert req.fetch("key") == []
+
+    def test_success_parses_keychains(self, monkeypatch: pytest.MonkeyPatch, req: KeychainsRequest) -> None:
+        body = {
+            "data": [
+                [
+                    {
+                        "featurePoint": "FR_Standardization_Feature_Base_1",
+                        "aesKey": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+                        "aesIv": "AAAAAAAAAAAAAAAAAAAAAA==",
+                    }
+                ]
+            ]
+        }
+        monkeypatch.setattr(httpx, "post", MagicMock(return_value=_mock_response(200, body)))
+        result = req.fetch("key")
+        assert len(result) == 1
+        assert len(result[0]) == 1
+        assert result[0][0].feature_point == 1
+        assert result[0][0].aes_key == "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
