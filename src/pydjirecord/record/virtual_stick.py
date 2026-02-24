@@ -21,7 +21,7 @@ from dataclasses import dataclass
 _PROTOBUF_AVAILABLE = False
 
 try:
-    from .virtual_stick_pb2 import VirtualStickFlightControlData as _VSMsg  # type: ignore[import-untyped]
+    from .virtual_stick_pb2 import VirtualStickFlightControlData as _VSMsg  # type: ignore[attr-defined]
 
     _PROTOBUF_AVAILABLE = True
 except Exception:
@@ -45,7 +45,7 @@ class VirtualStick:
     def from_bytes(cls, data: bytes) -> VirtualStick:
         if not _PROTOBUF_AVAILABLE:
             raise ImportError("protobuf package required for VirtualStick parsing: pip install 'pydjirecord[proto]'")
-        msg = _VSMsg()  # type: ignore[possibly-undefined]
+        msg = _VSMsg()
         msg.ParseFromString(data)
         return cls(
             pitch=float(msg.pitch),

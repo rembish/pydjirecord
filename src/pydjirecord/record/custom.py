@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from .._binary import BinaryReader
 
@@ -25,9 +25,9 @@ class Custom:
         secs = millis // 1000
         micros = (millis % 1000) * 1000
         try:
-            ts = datetime.fromtimestamp(secs, tz=UTC).replace(microsecond=micros)
+            ts = datetime.fromtimestamp(secs, tz=timezone.utc).replace(microsecond=micros)
             if ts.year < 2010 or ts.year > 2100:
-                ts = datetime(1970, 1, 1, tzinfo=UTC)
+                ts = datetime(1970, 1, 1, tzinfo=timezone.utc)
         except (OSError, OverflowError, ValueError):
-            ts = datetime(1970, 1, 1, tzinfo=UTC)
+            ts = datetime(1970, 1, 1, tzinfo=timezone.utc)
         return cls(update_timestamp=ts)

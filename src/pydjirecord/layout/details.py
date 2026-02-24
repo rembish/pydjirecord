@@ -5,7 +5,7 @@ from __future__ import annotations
 import enum
 import math
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from .._binary import BinaryReader
 
@@ -234,7 +234,7 @@ class Details:
     needs_upload: bool = False
     record_line_count: int = 0
     detail_info_checksum: int = 0
-    start_time: datetime = field(default_factory=lambda: datetime(1970, 1, 1, tzinfo=UTC))
+    start_time: datetime = field(default_factory=lambda: datetime(1970, 1, 1, tzinfo=timezone.utc))
     longitude: float = 0.0
     latitude: float = 0.0
     total_distance: float = 0.0
@@ -275,7 +275,7 @@ class Details:
         detail_info_checksum = r.read_i32()
 
         ts_millis = r.read_i64()
-        start_time = datetime.fromtimestamp(ts_millis / 1000, tz=UTC)
+        start_time = datetime.fromtimestamp(ts_millis / 1000, tz=timezone.utc)
 
         longitude = r.read_f64()
         latitude = r.read_f64()

@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.3] - 2026-02-24
+
+### Changed
+
+- Lower `requires-python` from `>=3.12` to `>=3.10` — the code uses no 3.11/3.12-only
+  features; the binding constraint is `python-dotenv>=1.0` which requires 3.9, and
+  Python 3.9 is already EOL, making 3.10 the sensible floor
+- Replace `from datetime import UTC` (3.11+) with `timezone.utc` in
+  `record/custom.py`, `frame/custom.py`, and `layout/details.py`
+- Update ruff `target-version` and mypy `python_version` to `py310` / `3.10`
+- Dependency minimums (`httpx>=0.27`, `pycryptodome>=3.20`, `python-dotenv>=1.0`)
+  are all justified and unchanged
+
 ## [0.6.2] - 2026-02-24
 
 ### Changed
