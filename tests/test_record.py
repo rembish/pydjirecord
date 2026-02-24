@@ -6,6 +6,7 @@ import math
 import struct
 
 from pydjirecord.record import Record, parse_record
+from pydjirecord.record.rc_gps import RCGPS, RCGPSTime
 from pydjirecord.record.app_gps import AppGPS
 from pydjirecord.record.app_tip import AppTip
 from pydjirecord.record.app_warn import AppWarn
@@ -389,6 +390,69 @@ class TestHomeAircraftHeadDirection:
         buf += struct.pack("<H", 0)
         home = Home.from_bytes(bytes(buf), version=6)
         assert home.aircraft_head_direction == 0
+
+
+class TestRCGPS:
+    @staticmethod
+    def _make_rc_gps_bytes(
+        hour: int = 12,
+        minute: int = 30,
+        second: int = 45,
+        year: int = 2021,
+        month: int = 5,
+        day: int = 25,
+        lat: int = 413000000,   # 41.3° × 1e7
+        lon: int = 198000000,   # 19.8° × 1e7
+        vx: int = 100,
+        vy: int = -50,
+        gps_num: int = 8,
+        accuracy: float = 2.5,
+        valid_data: int = 1,
+    ) -> bytes:
+        return struct.pack(
+            "<BBBHBBiiiiBfH",
+            hour, minute, second, year, month, day,
+            lat, lon, vx, vy,
+            gps_num, accuracy, valid_data,
+        )
+
+    def test_basic_parse(self) -> None:
+        data = self._make_rc_gps_bytes()
+        rc = RCGPS.from_bytes(data)
+        assert isinstance(rc.time, RCGPSTime)
+        assert rc.time.hour == 12
+        assert rc.time.minute == 30
+        assert rc.time.second == 45
+        assert rc.time.year == 2021
+        assert rc.time.month == 5
+        assert rc.time.day == 25
+
+    def test_coordinates_scaled(self) -> None:
+        data = self._make_rc_gps_bytes(lat=413000000, lon=198000000)
+        rc = RCGPS.from_bytes(data)
+        assert abs(rc.latitude - 41.3) < 1e-6
+        assert abs(rc.longitude - 19.8) < 1e-6
+
+    def test_negative_coordinates(self) -> None:
+        data = self._make_rc_gps_bytes(lat=-340000000, lon=-580000000)
+        rc = RCGPS.from_bytes(data)
+        assert abs(rc.latitude - (-34.0)) < 1e-6
+        assert abs(rc.longitude - (-58.0)) < 1e-6
+
+    def test_velocity_and_meta(self) -> None:
+        data = self._make_rc_gps_bytes(vx=100, vy=-50, gps_num=8, accuracy=2.5, valid_data=1)
+        rc = RCGPS.from_bytes(data)
+        assert rc.velocity_x == 100
+        assert rc.velocity_y == -50
+        assert rc.gps_num == 8
+        assert abs(rc.accuracy - 2.5) < 1e-4
+        assert rc.valid_data == 1
+
+    def test_dispatch(self) -> None:
+        data = self._make_rc_gps_bytes()
+        record = parse_record(11, data, version=14)
+        assert isinstance(record.data, RCGPS)
+        assert record.record_type == 11
 
 
 class TestParseRecord:

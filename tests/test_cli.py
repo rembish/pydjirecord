@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from pydjirecord.__main__ import main
+from pydjirecord.__main__ import build_parser, main
 
 SAMPLE_LOG = Path(__file__).parent / "fixtures" / "minimal_v14.txt"
 
@@ -91,6 +91,30 @@ class TestExportsRequireApiKey:
     def test_exports_exit_without_api_key(self, flag: str) -> None:
         with pytest.raises(SystemExit, match="1"):
             main([str(SAMPLE_LOG), flag])
+
+
+class TestApiOverrideArgs:
+    """--api-custom-department and --api-custom-version are accepted by the parser."""
+
+    def test_custom_department_parsed(self) -> None:
+        args = build_parser().parse_args([str(SAMPLE_LOG), "--api-custom-department", "2"])
+        assert args.api_custom_department == 2
+
+    def test_custom_version_parsed(self) -> None:
+        args = build_parser().parse_args([str(SAMPLE_LOG), "--api-custom-version", "3"])
+        assert args.api_custom_version == 3
+
+    def test_both_overrides_parsed(self) -> None:
+        args = build_parser().parse_args(
+            [str(SAMPLE_LOG), "--api-custom-department", "2", "--api-custom-version", "3"]
+        )
+        assert args.api_custom_department == 2
+        assert args.api_custom_version == 3
+
+    def test_overrides_without_api_key_still_require_key(self) -> None:
+        """Overrides alone don't bypass the API key requirement."""
+        with pytest.raises(SystemExit, match="1"):
+            main([str(SAMPLE_LOG), "--geojson", "--api-custom-department", "2"])
 
 
 class TestMutuallyExclusiveFormats:

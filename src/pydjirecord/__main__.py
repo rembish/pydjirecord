@@ -82,13 +82,25 @@ def _print_info(log: DJILog) -> None:
     print("\n".join(lines))
 
 
-def _get_keychains(log: DJILog, api_key: str | None) -> list[list[KeychainFeaturePoint]] | None:
+def _get_keychains(
+    log: DJILog,
+    api_key: str | None,
+    custom_department: int | None = None,
+    custom_version: int | None = None,
+) -> list[list[KeychainFeaturePoint]] | None:
     """Fetch keychains for v13+ logs, return None for older versions."""
     if log.version < 13:
         return None
     if not api_key:
         print("Error: v13+ logs require --api-key or DJI_API_KEY env var for decryption", file=sys.stderr)
         sys.exit(1)
+    if custom_department is not None or custom_version is not None:
+        req = log.keychains_request()
+        if custom_department is not None:
+            req.department = custom_department
+        if custom_version is not None:
+            req.version = custom_version
+        return req.fetch(api_key)
     return log.fetch_keychains(api_key)
 
 
@@ -109,6 +121,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("-o", "--output", metavar="FILE", default="-", help="output file (default: stdout)")
     parser.add_argument("--api-key", metavar="KEY", help="DJI API key for v13+ AES decryption")
+    parser.add_argument("--api-custom-department", metavar="INT", type=int, help="override keychain API department")
+    parser.add_argument("--api-custom-version", metavar="INT", type=int, help="override keychain API version")
 
     return parser
 
@@ -129,6 +143,8 @@ def main(argv: list[str] | None = None) -> None:
     log = DJILog.from_bytes(data)
 
     api_key: str | None = args.api_key or os.environ.get("DJI_API_KEY")
+    custom_department: int | None = args.api_custom_department
+    custom_version: int | None = args.api_custom_version
     output_path: str = args.output
 
     # No format flag → human-readable info
@@ -139,7 +155,7 @@ def main(argv: list[str] | None = None) -> None:
     # JSON / raw JSON
     if args.json or args.raw:
         if api_key or log.version < 13:
-            keychains = _get_keychains(log, api_key)
+            keychains = _get_keychains(log, api_key, custom_department, custom_version)
             if args.raw:
                 records = log.records(keychains)
                 text = export_json(log, raw_records=records)
@@ -155,7 +171,7 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     # Frame-based exports require decryption
-    keychains = _get_keychains(log, api_key)
+    keychains = _get_keychains(log, api_key, custom_department, custom_version)
     frames = log.frames(keychains)
 
     if args.kml:

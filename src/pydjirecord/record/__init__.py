@@ -23,6 +23,7 @@ from .ofdm import OFDM
 from .osd import OSD
 from .rc import RC
 from .rc_display_field import RCDisplayField
+from .rc_gps import RCGPS, RCGPSTime
 from .recover import Recover
 from .smart_battery import SmartBattery
 from .smart_battery_group import (
@@ -50,7 +51,9 @@ __all__ = [
     "Home",
     "KeyStorage",
     "MCParams",
+    "RCGPS",
     "RCDisplayField",
+    "RCGPSTime",
     "Record",
     "Recover",
     "SmartBattery",
@@ -134,6 +137,8 @@ def parse_record(
             parsed = AppTip.from_bytes(data)
         elif magic == 10:
             parsed = AppWarn.from_bytes(data)
+        elif magic == 11:
+            parsed = RCGPS.from_bytes(data)
         elif magic == 13:
             parsed = Recover.from_bytes(data, version)
         elif magic == 14:

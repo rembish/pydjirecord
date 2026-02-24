@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-02-24
+
+### Added
+
+- Record type 11 (`RCGPS`) parser — `dji_rc_gps_info_push` struct (30 bytes):
+  latitude/longitude (int32 × 1e-7 → degrees), velocity X/Y (raw int32),
+  satellite count, accuracy, validity flags, and embedded timestamp
+- CLI flags `--api-custom-department INT` and `--api-custom-version INT` to
+  override the department and version sent to the DJI keychain API
+
 ## [0.4.0] - 2026-02-24
 
 ### Fixed
