@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 import json
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from pydjirecord.djilog import DJILog
@@ -37,7 +37,7 @@ def _make_details() -> Details:
         total_distance=1000.0,
         total_time=300.0,
         max_height=120.0,
-        start_time=datetime(2021, 5, 22, 12, 0, tzinfo=UTC),
+        start_time=datetime(2021, 5, 22, 12, 0, tzinfo=timezone.utc),
     )
 
 

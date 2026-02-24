@@ -1,7 +1,7 @@
 """Tests for layout parsing (prefix, details)."""
 
 import struct
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -122,7 +122,7 @@ class TestDetails:
         # record_line_count, detail_info_checksum
         buf += struct.pack("<ii", 100, 0x1234)
         # start_time (ms since epoch) = 2021-05-22 15:51:13 UTC
-        ts = int(datetime(2021, 5, 22, 15, 51, 13, tzinfo=UTC).timestamp() * 1000)
+        ts = int(datetime(2021, 5, 22, 15, 51, 13, tzinfo=timezone.utc).timestamp() * 1000)
         buf += struct.pack("<q", ts)
         # longitude, latitude
         buf += struct.pack("<dd", 12.345, 56.789)
