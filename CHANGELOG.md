@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.3] - 2026-02-24
+
+### Fixed
+
+- **API response shape validation**: `_parse_data()` now validates that the
+  `data` payload is `list[list[dict]]` and raises `ApiError` on mismatched
+  shapes instead of crashing with `AttributeError`/`TypeError`.
+
 ## [1.0.2] - 2026-02-24
 
 ### Added

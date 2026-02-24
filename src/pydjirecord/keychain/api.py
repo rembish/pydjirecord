@@ -168,12 +168,22 @@ def _evict_cache(cache_dir: Path) -> None:
                 pass
 
 
-def _parse_data(data: list[list[dict[str, str]]]) -> list[list[KeychainFeaturePoint]]:
-    """Convert raw API ``data`` array into :class:`KeychainFeaturePoint` lists."""
+def _parse_data(data: object) -> list[list[KeychainFeaturePoint]]:
+    """Convert raw API ``data`` array into :class:`KeychainFeaturePoint` lists.
+
+    Expects ``list[list[dict[str, str]]]``.  Raises :class:`ApiError` if the
+    payload shape does not match.
+    """
+    if not isinstance(data, list):
+        raise ApiError(f"Unexpected API data type: expected list, got {type(data).__name__}")
     keychains: list[list[KeychainFeaturePoint]] = []
     for group in data:
+        if not isinstance(group, list):
+            raise ApiError(f"Unexpected keychain group type: expected list, got {type(group).__name__}")
         kc_group: list[KeychainFeaturePoint] = []
         for entry in group:
+            if not isinstance(entry, dict):
+                raise ApiError(f"Unexpected keychain entry type: expected dict, got {type(entry).__name__}")
             kc_group.append(
                 KeychainFeaturePoint(
                     feature_point=_parse_feature_point_value(entry.get("featurePoint", "")),

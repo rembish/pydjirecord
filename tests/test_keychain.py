@@ -214,6 +214,24 @@ class TestFetch:
         monkeypatch.setattr(httpx, "post", MagicMock(return_value=_mock_response(200, body)))
         assert req.fetch("key") == []
 
+    def test_malformed_data_raises_api_error(self, monkeypatch: pytest.MonkeyPatch, req: KeychainsRequest) -> None:
+        body = {"data": {"not": "list"}}
+        monkeypatch.setattr(httpx, "post", MagicMock(return_value=_mock_response(200, body)))
+        with pytest.raises(ApiError, match="expected list"):
+            req.fetch("key")
+
+    def test_malformed_group_raises_api_error(self, monkeypatch: pytest.MonkeyPatch, req: KeychainsRequest) -> None:
+        body = {"data": ["not a list of dicts"]}
+        monkeypatch.setattr(httpx, "post", MagicMock(return_value=_mock_response(200, body)))
+        with pytest.raises(ApiError, match="expected list"):
+            req.fetch("key")
+
+    def test_malformed_entry_raises_api_error(self, monkeypatch: pytest.MonkeyPatch, req: KeychainsRequest) -> None:
+        body = {"data": [["not a dict"]]}
+        monkeypatch.setattr(httpx, "post", MagicMock(return_value=_mock_response(200, body)))
+        with pytest.raises(ApiError, match="expected dict"):
+            req.fetch("key")
+
     def test_success_parses_keychains(self, monkeypatch: pytest.MonkeyPatch, req: KeychainsRequest) -> None:
         body = {
             "data": [
