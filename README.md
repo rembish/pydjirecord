@@ -10,12 +10,18 @@ This project is a Python rewrite of [dji-log-parser](https://github.com/lvauvill
 
 ## Requirements
 
-- Python 3.12+
+- Python 3.10+
 
 ## Installation
 
 ```bash
 pip install pydjirecord
+```
+
+To also parse VirtualStick (type 33) records, install the optional protobuf extra:
+
+```bash
+pip install 'pydjirecord[proto]'
 ```
 
 Or from source:
@@ -145,6 +151,14 @@ make format         # ruff format + autofix
 make lint           # ruff check
 make typecheck      # mypy strict
 make test           # pytest with coverage
+make build          # build sdist and wheel into dist/
+```
+
+Run tests across all supported Python versions with tox (requires the interpreters to be installed):
+
+```bash
+.venv/bin/tox                  # all versions
+.venv/bin/tox -e py310,py312   # specific versions
 ```
 
 Run a single test:
