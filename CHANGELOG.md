@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.1] - 2026-02-24
+
+### Added
+
+- Private log discovery helper for tests (`tests/_log_discovery.py`) with
+  lookup order:
+  1. `DJI_LOGS_DIR` (if set and contains `DJIFlightRecord_*.txt`)
+  2. repository `examples/`
+- Mutation-regression suite (`tests/test_mutation_regression.py`) using real
+  v14 logs:
+  - deterministic corruption cases (tail padding, hard/soft truncation,
+    detail-region bit flips, first-record magic corruption)
+  - seeded randomized record-region mutations (24 seeds) with structural
+    invariants for `records()` output shape and exception-type safety
+
+### Changed
+
+- `tests/test_djilog.py` now uses shared log discovery so private local corpora
+  can run integration tests without copying files into `examples/`.
+- `tests/test_cli.py` now isolates `.env`/`DJI_API_KEY` in tests to prevent
+  accidental network calls and machine-specific flakiness.
+- README development docs now include a one-liner for running integration and
+  mutation-regression tests against a private corpus via `DJI_LOGS_DIR`.
+
 ## [0.7.0] - 2026-02-24
 
 ### Added
