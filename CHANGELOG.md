@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.2] - 2026-02-24
+
+### Added
+
+- **SmartBattery `abs()` documentation**: Added comment explaining that
+  `abs(current_current)` is intentional and matches the Rust reference
+  (`smart_battery_group.rs:51`).
+- **End-to-end malformed keychain tests**: Added `TestMalformedKeychainThroughDecode`
+  verifying that invalid base64, wrong key/IV lengths, and empty keychains
+  all fall back gracefully to XOR-only decryption through the full
+  `record_decode()` pipeline.
+
 ## [1.0.1] - 2026-02-24
 
 ### Fixed

@@ -190,3 +190,64 @@ class TestRecordDecode:
         # if the last byte is not stripped before AES decryption.
         result = record_decode(raw_data, record_type=record_type, version=14, keychain=kc)
         assert result == inner_plaintext
+
+
+class TestMalformedKeychainThroughDecode:
+    """End-to-end: malformed keychain entries must not crash record_decode().
+
+    When a keychain entry has bad base64, wrong key length, or wrong IV
+    length, the invalid entry is skipped during Keychain construction.
+    record_decode() should fall back to XOR-only decryption (no AES) for
+    the affected feature point, rather than crashing inside AES.
+    """
+
+    def _xor_only(self, data: bytes, record_type: int) -> bytes:
+        """Expected result when AES is skipped."""
+        return xor_decode(data, record_type)
+
+    def test_invalid_base64_falls_back_to_xor(self) -> None:
+        fps = [KeychainFeaturePoint(feature_point=1, aes_key="!!!bad!!!", aes_iv="!!!bad!!!")]
+        kc = Keychain.from_feature_points(fps)
+
+        data = bytes(range(20))
+        result = record_decode(data, record_type=1, version=14, keychain=kc)
+        assert result == self._xor_only(data, 1)
+
+    def test_wrong_key_length_falls_back_to_xor(self) -> None:
+        import base64
+
+        fps = [
+            KeychainFeaturePoint(
+                feature_point=1,
+                aes_key=base64.b64encode(b"\x00" * 16).decode(),  # 16 bytes, not 32
+                aes_iv=base64.b64encode(b"\x00" * 16).decode(),
+            )
+        ]
+        kc = Keychain.from_feature_points(fps)
+
+        data = bytes(range(20))
+        result = record_decode(data, record_type=1, version=14, keychain=kc)
+        assert result == self._xor_only(data, 1)
+
+    def test_wrong_iv_length_falls_back_to_xor(self) -> None:
+        import base64
+
+        fps = [
+            KeychainFeaturePoint(
+                feature_point=1,
+                aes_key=base64.b64encode(b"\x00" * 32).decode(),
+                aes_iv=base64.b64encode(b"\x00" * 8).decode(),  # 8 bytes, not 16
+            )
+        ]
+        kc = Keychain.from_feature_points(fps)
+
+        data = bytes(range(20))
+        result = record_decode(data, record_type=1, version=14, keychain=kc)
+        assert result == self._xor_only(data, 1)
+
+    def test_empty_keychain_falls_back_to_xor(self) -> None:
+        kc = Keychain.from_feature_points([])
+
+        data = bytes(range(20))
+        result = record_decode(data, record_type=1, version=14, keychain=kc)
+        assert result == self._xor_only(data, 1)

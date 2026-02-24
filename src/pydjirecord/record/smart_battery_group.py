@@ -79,6 +79,10 @@ def parse_smart_battery_group(data: bytes, version: int = 0) -> SmartBatteryGrou
     if magic == 2:
         index = r.read_u8()
         current_voltage = r.read_i32() / 1000.0
+        # abs() matches the Rust reference (smart_battery_group.rs:51).
+        # DJI always reports discharge as negative; abs() normalises to a
+        # magnitude-only value.  Charge/discharge direction is available
+        # via battery_state flags if needed.
         current_current = abs(r.read_i32()) / 1000.0
         full_capacity = r.read_u32()
         remained_capacity = r.read_u32()
