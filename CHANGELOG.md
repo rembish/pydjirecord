@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.4] - 2026-02-24
+
+### Added
+
+- `.github/workflows/ci.yml` — GitHub Actions CI with three jobs:
+  - **checks**: ruff format + lint, mypy strict (Python 3.12)
+  - **test**: tox matrix across Python 3.10–3.14 (`fail-fast: false`,
+    `allow-prereleases: true` for 3.14)
+  - **build**: sdist + wheel via `python -m build`, artifacts uploaded;
+    PyPI publish step stubbed out with a TODO for when the account is recovered
+- `[tool.tox]` config in `pyproject.toml` (`envlist = py310..py314`,
+  `isolated_build = true`, installs `[proto]` extras so VirtualStick tests run)
+- `tox>=4.0` added to `[dev]` optional dependencies
+
 ## [0.6.3] - 2026-02-24
 
 ### Changed
