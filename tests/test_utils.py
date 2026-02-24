@@ -1,6 +1,6 @@
 """Tests for utility functions."""
 
-from pydjirecord.utils import append_message, crc64, pad_with_zeros, sub_byte_field
+from pydjirecord.utils import append_message, crc64, haversine_distance, pad_with_zeros, sub_byte_field
 
 
 class TestCrc64:
@@ -53,3 +53,28 @@ class TestAppendMessage:
 
     def test_non_empty_original(self) -> None:
         assert append_message("first", "second") == "first; second"
+
+
+class TestHaversineDistance:
+    def test_same_point_is_zero(self) -> None:
+        assert haversine_distance(41.0, 19.0, 41.0, 19.0) == 0.0
+
+    def test_known_distance_equator(self) -> None:
+        # 1 degree of longitude at the equator ≈ 111 195 m
+        d = haversine_distance(0.0, 0.0, 0.0, 1.0)
+        assert abs(d - 111_195) < 10
+
+    def test_known_distance_latitude(self) -> None:
+        # 1 degree of latitude ≈ 111 195 m everywhere
+        d = haversine_distance(0.0, 0.0, 1.0, 0.0)
+        assert abs(d - 111_195) < 10
+
+    def test_symmetric(self) -> None:
+        d1 = haversine_distance(41.0, 19.0, 42.0, 20.0)
+        d2 = haversine_distance(42.0, 20.0, 41.0, 19.0)
+        assert abs(d1 - d2) < 0.001
+
+    def test_short_step_reasonable(self) -> None:
+        # 0.001 degree latitude ≈ 111 m
+        d = haversine_distance(45.0, 16.0, 45.001, 16.0)
+        assert 100.0 < d < 120.0

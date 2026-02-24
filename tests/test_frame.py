@@ -150,6 +150,96 @@ class TestRecordsToFrames:
         assert "Tip1" not in frames[1].app.tip
 
 
+class TestCumulativeDistance:
+    def test_zero_with_single_osd(self) -> None:
+        """First frame has no previous point, cumulative distance stays 0."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [Record(record_type=1, data=_make_osd(latitude=41.0, longitude=19.0, is_gps_valid=True, gps_level=4))]
+        frames = records_to_frames(records, details)
+        assert frames[0].osd.cumulative_distance == 0.0
+
+    def test_accumulates_between_valid_gps_frames(self) -> None:
+        """Cumulative distance grows with successive valid GPS frames."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(
+                record_type=1,
+                data=_make_osd(latitude=41.0, longitude=19.0, is_gps_valid=True, gps_level=4, fly_time=1.0),
+            ),
+            Record(
+                record_type=1,
+                data=_make_osd(latitude=41.001, longitude=19.0, is_gps_valid=True, gps_level=4, fly_time=2.0),
+            ),
+        ]
+        frames = records_to_frames(records, details)
+        assert frames[0].osd.cumulative_distance == 0.0
+        # ~111 m per 0.001 degree latitude
+        assert 100.0 < frames[1].osd.cumulative_distance < 120.0
+
+    def test_no_accumulation_below_gps_level_3(self) -> None:
+        """GPS fixes with level < 3 are not counted."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(
+                record_type=1,
+                data=_make_osd(latitude=41.0, longitude=19.0, is_gps_valid=True, gps_level=4, fly_time=1.0),
+            ),
+            Record(
+                record_type=1,
+                data=_make_osd(latitude=41.001, longitude=19.0, is_gps_valid=True, gps_level=2, fly_time=2.0),
+            ),
+            Record(
+                record_type=1,
+                data=_make_osd(latitude=41.002, longitude=19.0, is_gps_valid=True, gps_level=4, fly_time=3.0),
+            ),
+        ]
+        frames = records_to_frames(records, details)
+        # Frame 2 has poor GPS — no step added
+        assert frames[1].osd.cumulative_distance == 0.0
+        # Frame 3 jumps from frame 1's position (last valid), skipping frame 2
+        assert 200.0 < frames[2].osd.cumulative_distance < 240.0
+
+    def test_no_accumulation_when_gps_not_used(self) -> None:
+        """GPS fixes with is_gps_valid=False are not counted."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(
+                record_type=1,
+                data=_make_osd(latitude=41.0, longitude=19.0, is_gps_valid=True, gps_level=4, fly_time=1.0),
+            ),
+            Record(
+                record_type=1,
+                data=_make_osd(latitude=41.001, longitude=19.0, is_gps_valid=False, gps_level=4, fly_time=2.0),
+            ),
+        ]
+        frames = records_to_frames(records, details)
+        assert frames[1].osd.cumulative_distance == 0.0
+
+    def test_carries_across_frames(self) -> None:
+        """Cumulative distance carries forward from frame to frame."""
+        details = Details(product_type=ProductType.MAVIC_AIR2)
+        records = [
+            Record(
+                record_type=1,
+                data=_make_osd(latitude=41.0, longitude=19.0, is_gps_valid=True, gps_level=4, fly_time=1.0),
+            ),
+            Record(
+                record_type=1,
+                data=_make_osd(latitude=41.001, longitude=19.0, is_gps_valid=True, gps_level=4, fly_time=2.0),
+            ),
+            Record(
+                record_type=1,
+                data=_make_osd(latitude=41.002, longitude=19.0, is_gps_valid=True, gps_level=4, fly_time=3.0),
+            ),
+        ]
+        frames = records_to_frames(records, details)
+        d1 = frames[1].osd.cumulative_distance
+        d2 = frames[2].osd.cumulative_distance
+        assert d2 > d1
+        # Each step is roughly the same distance
+        assert abs(d2 - 2 * d1) < 1.0
+
+
 class TestHSpeedComputation:
     def test_h_speed_computed(self) -> None:
         details = Details(product_type=ProductType.MAVIC_AIR2)

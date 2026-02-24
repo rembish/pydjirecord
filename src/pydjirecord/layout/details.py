@@ -223,7 +223,20 @@ def _parse_battery_sn(product_type: ProductType, buf: bytes) -> str:
 
 @dataclass
 class Details:
-    """Flight metadata parsed from the log details section."""
+    """Flight metadata parsed from the log Details header block.
+
+    These values are written by the DJI app at the end of a flight and are
+    available without decryption.  Most are reliable; ``total_distance`` is
+    the notable exception — see its field note below.
+
+    ``total_distance``
+        As stored in the binary header (metres).  The DJI C++ reference
+        library ignores this field and recomputes total distance from the
+        GPS track in the decrypted records (``cumulativeFlightDistance`` on
+        the last frame).  In practice the header value is often near zero or
+        otherwise inaccurate.  Prefer ``FrameOSD.cumulative_distance`` from
+        the last decoded frame for a reliable figure.
+    """
 
     sub_street: str = ""
     street: str = ""

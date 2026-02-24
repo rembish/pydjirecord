@@ -53,3 +53,28 @@ def append_message(original: str, message: str) -> str:
     if original:
         return f"{original}; {message}"
     return message
+
+
+_EARTH_RADIUS_M = 6_371_000.0  # metres, matching C++ kEarthRadiusKm * 1000
+
+
+def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Great-circle distance in metres between two WGS-84 coordinates.
+
+    Implements the same Vincenty spherical formula used by the DJI C++ reference
+    library (``DistanceEarth`` in ``FlightRecordMaths.cpp``).  Inputs are in
+    decimal degrees; output is in metres.
+    """
+    import math
+
+    lat1r = math.radians(lat1)
+    lon1r = math.radians(lon1)
+    lat2r = math.radians(lat2)
+    lon2r = math.radians(lon2)
+
+    d_lon = abs(lon1r - lon2r)
+    a = (math.cos(lat2r) * math.sin(d_lon)) ** 2
+    b = math.cos(lat1r) * math.sin(lat2r) - math.sin(lat1r) * math.cos(lat2r) * math.cos(d_lon)
+    e = math.sqrt(a + b**2)
+    h = math.sin(lat1r) * math.sin(lat2r) + math.cos(lat1r) * math.cos(lat2r) * math.cos(d_lon)
+    return _EARTH_RADIUS_M * math.atan2(e, h)

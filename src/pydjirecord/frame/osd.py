@@ -21,7 +21,23 @@ if TYPE_CHECKING:
 
 @dataclass
 class FrameOSD:
-    """Normalized OSD frame data."""
+    """Normalized OSD frame data.
+
+    Most numeric fields are populated directly from the OSD record for each
+    frame.  Two fields deserve special attention regarding distance:
+
+    ``cumulative_distance``
+        Running total of the GPS track length up to and including this frame,
+        in metres.  Computed by the frame builder from successive valid GPS
+        positions using the same Vincenty spherical formula as the DJI C++
+        reference library (``DistanceEarth``).  A position is considered valid
+        when ``is_gpd_used`` is ``True`` *and* ``gps_level >= 3``.  This is
+        the authoritative distance figure — use it in preference to
+        ``Details.total_distance``.
+
+    Note: ``height`` is the altitude above the take-off point (AGL);
+    ``altitude`` is the absolute altitude (height + home altitude).
+    """
 
     fly_time: float = 0.0
     latitude: float = 0.0
@@ -38,6 +54,7 @@ class FrameOSD:
     z_speed_max: float = 0.0
     h_speed: float = 0.0
     h_speed_max: float = 0.0
+    cumulative_distance: float = 0.0
     pitch: float = 0.0
     roll: float = 0.0
     yaw: float = 0.0

@@ -25,7 +25,7 @@ from ..record.smart_battery_group import (
     SmartBatterySingleVoltage,
     SmartBatteryStatic,
 )
-from ..utils import append_message
+from ..utils import append_message, haversine_distance
 from . import Frame
 from .battery import FrameBattery
 from .recover import FrameRecover
@@ -56,6 +56,10 @@ def records_to_frames(records: list[Record], details: Details) -> list[Frame]:
     )
 
     frame_index = 0
+    # Previous valid GPS fix for cumulative distance accumulation.
+    # Validity mirrors CoordinateIsValid in the DJI C++ reference:
+    # gps_level >= 3 and is_gps_valid (isGPSBeingUsed).
+    _prev_gps: tuple[float, float] | None = None  # (lat, lon)
 
     for record in records:
         data = record.data
@@ -71,6 +75,17 @@ def records_to_frames(records: list[Record], details: Details) -> list[Frame]:
             if data.latitude != 0.0 or data.longitude != 0.0:
                 frame.osd.latitude = data.latitude
                 frame.osd.longitude = data.longitude
+
+            # Accumulate GPS track distance — mirrors CoordinateIsValid from
+            # the DJI C++ reference: gps_level >= 3 and is_gps_valid.
+            if data.is_gps_valid and data.gps_level >= 3 and (data.latitude != 0.0 or data.longitude != 0.0):
+                curr = (data.latitude, data.longitude)
+                if _prev_gps is not None:
+                    frame.osd.cumulative_distance += haversine_distance(
+                        _prev_gps[0], _prev_gps[1], curr[0], curr[1]
+                    )
+                _prev_gps = curr
+
             frame.osd.altitude = data.altitude + frame.home.altitude
             frame.osd.height = data.altitude
             frame.osd.vps_height = data.s_wave_height

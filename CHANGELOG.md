@@ -2,6 +2,51 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.0] - 2026-02-24
+
+### Added
+
+- `FrameOSD.cumulative_distance` — running GPS track length in metres,
+  accumulated by the frame builder using the same Vincenty spherical formula
+  as the DJI C++ reference library (`DistanceEarth` / `CoordinateIsValid`).
+  A position is counted only when `is_gps_valid` is `True` and
+  `gps_level >= 3`.  This is the authoritative distance figure; use it in
+  preference to `Details.total_distance`.
+- `haversine_distance(lat1, lon1, lat2, lon2)` utility function in
+  `pydjirecord.utils` — great-circle distance in metres from decimal-degree
+  coordinates, matching `kEarthRadiusKm = 6371 km` from the C++ reference.
+- Croatia integration fixture (`examples/DJIFlightRecord_2024-09-01_[14-55-49].txt`,
+  v14, 390 KB, 45.47°N 16.39°E) — integration tests now run on every
+  checkout instead of being silently skipped.
+- `integration` pytest marker registered in `pyproject.toml`; `test_djilog.py`
+  documented with instructions for adding further fixtures.
+
+### Fixed
+
+- **CRITICAL**: `aes_decode()` called `cipher.decrypt()` twice on the same
+  stateful CBC object when `unpad()` raised `ValueError`, producing corrupted
+  plaintext.  Fixed by decrypting once and unpadding the stored result.
+- **Final frame always dropped**: the frame builder only appended a frame on
+  the arrival of the *next* OSD record, so the last frame was always lost.
+  Added an end-of-loop flush.
+- **`--raw` silent downgrade**: `--raw` on v13+ without an API key fell
+  through to a details-only JSON export instead of exiting with an error.
+  Behaviour now matches all other frame-based exports.
+- `virtual_stick.py` import block narrowed from bare `except Exception` to
+  `except ImportError`.
+- README clone URL corrected to `rembish/pydjirecord`; added cross-reference
+  to `dji-sdk/FlightRecordParsingLib`; `fetch_keychains` comment updated.
+
+### Changed
+
+- `Details.total_distance` now documented as unreliable (the DJI C++ library
+  ignores the header value and recomputes distance from the GPS track).
+- `FrameOSD` class docstring clarifies `height` (AGL) vs `altitude`
+  (absolute) and the semantics of `cumulative_distance`.
+- Integration test `test_details_has_start_time`: `year == 2021` →
+  `year >= 2017` so the assertion holds for any real-world log.
+- `examples/` removed from `.gitignore`.
+
 ## [0.6.5] - 2026-02-24
 
 ### Fixed
