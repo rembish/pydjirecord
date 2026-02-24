@@ -226,8 +226,9 @@ class Details:
     """Flight metadata parsed from the log Details header block.
 
     These values are written by the DJI app at the end of a flight and are
-    available without decryption.  Most are reliable; ``total_distance`` is
-    the notable exception — see its field note below.
+    available without decryption.  Most are reliable; ``total_distance``,
+    ``capture_num``, and ``video_time`` are notable exceptions — see their
+    field notes below.
 
     ``total_distance``
         As stored in the binary header (metres).  The DJI C++ reference
@@ -236,6 +237,22 @@ class Details:
         the last frame).  In practice the header value is often near zero or
         otherwise inaccurate.  Prefer ``FrameOSD.cumulative_distance`` from
         the last decoded frame for a reliable figure.
+
+    ``capture_num``
+        As stored in the binary header.  The DJI Fly app does not populate
+        this field — it is always 0 for Mavic Air 2 and similar aircraft.
+        The C++ reference library does not use it either.  Per-frame photo
+        events are available via ``FrameCamera.is_photo`` in the decrypted
+        record stream (requires API key).
+
+    ``video_time``
+        As stored in the binary header.  This is **not** the per-flight
+        recording duration.  Observed values frequently exceed the flight
+        time and are non-monotonic across consecutive flights, suggesting
+        the field is some form of cumulative SD-card counter that resets on
+        card format or replacement.  The C++ reference library does not use
+        it.  Per-frame recording state is available via ``FrameCamera.is_video``
+        in the decrypted record stream (requires API key).
     """
 
     sub_street: str = ""

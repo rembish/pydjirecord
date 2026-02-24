@@ -128,6 +128,32 @@ for frame in frames:
 records = log.records(keychains)
 ```
 
+## Known Limitations
+
+### Header fields that are unreliable
+
+Several fields in the `Details` header block (readable without decryption) are written by the DJI app and are not always accurate:
+
+| Field | Problem | Reliable alternative |
+|-------|---------|----------------------|
+| `details.total_distance` | Almost always near-zero or incorrect. The DJI C++ reference library ignores it and recomputes distance from the GPS track. | `frames[-1].osd.cumulative_distance` — running GPS track length accumulated by the frame builder. |
+| `details.capture_num` | Always 0 for DJI Fly app logs (Mavic Air 2 and similar). The app does not populate this field. | `frame.camera.is_photo` per frame (requires decryption). |
+| `details.video_time` | Not per-flight recording duration. Values frequently exceed flight time and are non-monotonic across consecutive flights, suggesting a cumulative SD-card counter that resets on card format or swap. The C++ reference library does not use it. | `frame.camera.is_video` per frame (requires decryption). |
+
+### Network access required for decryption
+
+Version 13 and 14 logs use AES-256-CBC encryption. Decryption requires fetching per-flight keys from the DJI API over HTTPS:
+
+```
+https://dev.dji.com/...
+```
+
+In **air-gapped or network-restricted environments** (corporate firewalls, secured laptops), `log.fetch_keychains()` will raise a network error. In that case:
+
+- `log.details` (the unencrypted header) is still fully readable.
+- `log.version`, `log.details.aircraft_name`, `log.details.start_time`, etc. work without a network call.
+- Frame-level telemetry (`log.frames(keychains)`) and all export formats (`--json`, `--csv`, `--geojson`, `--kml`, `--raw`) require the decryption keys and will fail without network access.
+
 ## Encryption
 
 | Version | Encryption |
