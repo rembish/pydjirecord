@@ -126,7 +126,7 @@ frames = log.frames(keychains)
 
 for frame in frames:
     print(frame.osd.latitude, frame.osd.longitude, frame.osd.altitude)
-    print(frame.battery.voltage, frame.battery.charge_level)
+    print(frame.battery.voltage, frame.battery.charge_level, frame.battery.lifetime_remaining)
     print(frame.gimbal.pitch, frame.gimbal.yaw)
 
 # Raw records

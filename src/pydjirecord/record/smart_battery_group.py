@@ -55,6 +55,7 @@ def parse_smart_battery_group(data: bytes, version: int = 0) -> SmartBatteryGrou
 
     if magic == 1:
         index = r.read_u8()
+        r.skip(1)  # padding byte between index and designed_capacity
         designed_capacity = r.read_u32()
         loop_times = r.read_u16()
         full_voltage = r.read_u32()

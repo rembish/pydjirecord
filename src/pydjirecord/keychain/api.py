@@ -83,7 +83,11 @@ class KeychainsRequest:
         When *cache* is ``True`` (default), responses are cached locally
         under ``$XDG_CACHE_HOME/pydjirecord/keychains/`` so that
         repeated parses of the same log file skip the network round-trip.
+
+        Raises :class:`ApiKeyError` if *api_key* is ``None`` or empty.
         """
+        if not api_key:
+            raise ApiKeyError("DJI API key is required for v13+ log decryption")
         body = self.to_dict()
         key = _cache_key(body)
 

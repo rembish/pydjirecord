@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2026-02-25
+
+### Fixed
+
+- **SmartBatteryStatic padding byte**: Added missing padding byte after the
+  `index` field in SmartBatteryStatic (magic=1) parsing. All subsequent fields
+  (designed_capacity, loop_times, full_voltage, serial_number, battery_life)
+  were shifted by one byte, inflating values by 256x. This bug also exists in
+  the upstream Rust reference.
+- **CenterBattery exposed fields**: `life`, `number_of_discharges`, and
+  `serial_number` were parsed but discarded. Now exposed as dataclass fields
+  and wired into `FrameBattery.lifetime_remaining` and
+  `FrameBattery.number_of_discharges`.
+- **Keychain API None/empty key crash**: Passing `None` or `""` as the API key
+  to `KeychainsRequest.fetch()` caused a `TypeError` in httpx headers. Now
+  raises `ApiKeyError` with a clear message before making any network call.
+
 ## [1.1.0] - 2026-02-25
 
 ### Added

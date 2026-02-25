@@ -34,6 +34,12 @@ from pydjirecord.record.rc import RC
 from pydjirecord.record.rc_display_field import RCDisplayField
 from pydjirecord.record.rc_gps import RCGPS, RCGPSTime
 from pydjirecord.record.smart_battery import SmartBattery
+from pydjirecord.record.smart_battery_group import (
+    SmartBatteryDynamic,
+    SmartBatterySingleVoltage,
+    SmartBatteryStatic,
+    parse_smart_battery_group,
+)
 
 
 class TestOSD:
@@ -178,14 +184,40 @@ class TestCenterBattery:
         buf += struct.pack("<I", 0)  # error_type
         buf += struct.pack("<h", -500)  # current = -0.5A
         buf += struct.pack("<HHHHHH", 3800, 3800, 3800, 0, 0, 0)  # cell voltages
-        buf += struct.pack("<H", 0)  # serial
+        buf += struct.pack("<H", 1234)  # serial
         buf += struct.pack("<H", 0)  # product_date
         bat = CenterBattery.from_bytes(bytes(buf), version=6)
         assert bat.relative_capacity == 75
         assert abs(bat.voltage - 11.4) < 0.01
+        assert bat.current_capacity == 3000
+        assert bat.full_capacity == 4000
+        assert bat.life == 95
+        assert bat.number_of_discharges == 50
         assert abs(bat.current - (-0.5)) < 0.01
         assert abs(bat.voltage_cell1 - 3.8) < 0.01
+        assert bat.serial_number == 1234
         assert bat.temperature == 0.0  # version < 8
+
+    def test_temperature_v8(self) -> None:
+        buf = bytearray()
+        buf += struct.pack("<B", 80)  # relative_capacity
+        buf += struct.pack("<H", 11600)  # voltage
+        buf += struct.pack("<H", 3200)  # current_capacity
+        buf += struct.pack("<H", 3500)  # full_capacity
+        buf += struct.pack("<B", 90)  # life
+        buf += struct.pack("<H", 25)  # discharges
+        buf += struct.pack("<I", 0)  # error_type
+        buf += struct.pack("<h", -300)  # current
+        buf += struct.pack("<HHHHHH", 3900, 3900, 3900, 0, 0, 0)  # cells
+        buf += struct.pack("<H", 5678)  # serial
+        buf += struct.pack("<H", 0)  # product_date
+        # temperature: 2981 => 298.1K - 273.15 = 24.95°C
+        buf += struct.pack("<H", 2981)
+        bat = CenterBattery.from_bytes(bytes(buf), version=8)
+        assert bat.life == 90
+        assert bat.number_of_discharges == 25
+        assert bat.serial_number == 5678
+        assert abs(bat.temperature - 24.95) < 0.01
 
 
 class TestCamera:
@@ -403,6 +435,79 @@ class TestSmartBatteryFields:
         sb = SmartBattery.from_bytes(data)
         assert sb.low_warning_go_home == 0
         assert sb.serious_low_warning_landing == 0
+
+
+class TestSmartBatteryGroup:
+    def test_static_with_padding_byte(self) -> None:
+        """SmartBatteryStatic has a padding byte after index that must be skipped."""
+        buf = bytearray()
+        buf += struct.pack("<B", 1)  # magic = static
+        buf += struct.pack("<B", 0)  # index
+        buf += struct.pack("<B", 0)  # padding byte
+        buf += struct.pack("<I", 3540)  # designed_capacity (mAh)
+        buf += struct.pack("<H", 69)  # loop_times (charge cycles)
+        buf += struct.pack("<I", 11400)  # full_voltage (mV)
+        buf += struct.pack("<H", 0)  # unknown
+        buf += struct.pack("<H", 42)  # serial_number
+        buf += bytes(10)  # skip block 1
+        buf += bytes(5)  # skip block 2
+        buf += b"\x01\x02\x03\x04\x05\x06\x07\x08"  # version_number (8 bytes)
+        buf += struct.pack("<B", 100)  # battery_life
+        buf += struct.pack("<B", 2)  # battery_type
+        result = parse_smart_battery_group(bytes(buf))
+        assert isinstance(result, SmartBatteryStatic)
+        assert result.index == 0
+        assert result.designed_capacity == 3540
+        assert result.loop_times == 69
+        assert result.full_voltage == 11400
+        assert result.serial_number == 42
+        assert result.version_number == b"\x01\x02\x03\x04\x05\x06\x07\x08"
+        assert result.battery_life == 100
+        assert result.battery_type == 2
+
+    def test_dynamic(self) -> None:
+        buf = bytearray()
+        buf += struct.pack("<B", 2)  # magic = dynamic
+        buf += struct.pack("<B", 1)  # index
+        buf += struct.pack("<i", 11400)  # current_voltage (mV) => 11.4V
+        buf += struct.pack("<i", -5200)  # current_current (mA, negative) => abs => 5.2A
+        buf += struct.pack("<I", 4000)  # full_capacity
+        buf += struct.pack("<I", 3200)  # remained_capacity
+        buf += struct.pack("<h", 250)  # temperature => 25.0°C
+        buf += struct.pack("<B", 3)  # cell_count
+        buf += struct.pack("<B", 80)  # capacity_percent
+        buf += struct.pack("<Q", 0)  # battery_state
+        result = parse_smart_battery_group(bytes(buf))
+        assert isinstance(result, SmartBatteryDynamic)
+        assert result.index == 1
+        assert abs(result.current_voltage - 11.4) < 0.01
+        assert abs(result.current_current - 5.2) < 0.01
+        assert result.full_capacity == 4000
+        assert result.remained_capacity == 3200
+        assert abs(result.temperature - 25.0) < 0.1
+        assert result.cell_count == 3
+        assert result.capacity_percent == 80
+
+    def test_single_voltage(self) -> None:
+        buf = bytearray()
+        buf += struct.pack("<B", 3)  # magic = single voltage
+        buf += struct.pack("<B", 0)  # index
+        buf += struct.pack("<B", 3)  # cell_count
+        buf += struct.pack("<HHH", 3800, 3850, 3900)  # cell voltages in mV
+        result = parse_smart_battery_group(bytes(buf))
+        assert isinstance(result, SmartBatterySingleVoltage)
+        assert result.index == 0
+        assert result.cell_count == 3
+        assert len(result.cell_voltages) == 3
+        assert abs(result.cell_voltages[0] - 3.8) < 0.01
+        assert abs(result.cell_voltages[1] - 3.85) < 0.01
+        assert abs(result.cell_voltages[2] - 3.9) < 0.01
+
+    def test_unknown_magic_returns_default(self) -> None:
+        buf = struct.pack("<B", 99)  # unknown magic
+        result = parse_smart_battery_group(bytes(buf))
+        assert isinstance(result, SmartBatteryStatic)
+        assert result.designed_capacity == 0
 
 
 class TestHomeAircraftHeadDirection:

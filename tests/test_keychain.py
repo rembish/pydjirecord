@@ -232,6 +232,14 @@ class TestFetch:
         with pytest.raises(ApiError, match="expected dict"):
             req.fetch("key")
 
+    def test_none_api_key_raises_api_key_error(self, req: KeychainsRequest) -> None:
+        with pytest.raises(ApiKeyError, match="required"):
+            req.fetch(None)  # type: ignore[arg-type]
+
+    def test_empty_api_key_raises_api_key_error(self, req: KeychainsRequest) -> None:
+        with pytest.raises(ApiKeyError, match="required"):
+            req.fetch("")
+
     def test_success_parses_keychains(self, monkeypatch: pytest.MonkeyPatch, req: KeychainsRequest) -> None:
         body = {
             "data": [

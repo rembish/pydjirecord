@@ -180,6 +180,8 @@ def records_to_frames(records: list[Record], details: Details) -> list[Frame]:
             frame.battery.voltage = data.voltage
             frame.battery.current_capacity = data.current_capacity
             frame.battery.full_capacity = data.full_capacity
+            frame.battery.lifetime_remaining = data.life
+            frame.battery.number_of_discharges = data.number_of_discharges
             frame.battery.is_cell_voltage_estimated = False
 
             cvs = frame.battery.cell_voltages
