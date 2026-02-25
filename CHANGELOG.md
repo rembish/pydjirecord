@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-02-25
+
+### Added
+
+- **`--hardware` CLI command**: New `djirecord flight.txt --hardware` output
+  showing a structured hardware report — aircraft, camera, remote controller
+  (serial + signal stats + pilot GPS), battery (design capacity, charge cycles,
+  voltage range, peak current, temperature, cell voltages, deviation),
+  firmware versions, flight controller settings (failsafe, obstacle avoidance),
+  and component serials. Degrades gracefully without an API key.
+- **`compute_rc_signal()`** in `frame.builder` — computes min/avg uplink and
+  downlink signal percentages from OFDM frame data.
+- **`RCSignalStats`** dataclass and `FrameDetails.rc_signal` field — RC link
+  quality summary automatically populated when frames are provided.
+- CLI info mode now shows an `RC signal:` section with min/avg downlink and
+  uplink when frames are available.
+
+### Fixed
+
+- **CenterBattery `current` and `temperature` not wired**: `CenterBattery`
+  records parsed `current` and `temperature` but did not propagate them to
+  `FrameBattery`. Older drones using CenterBattery records now show actual
+  current draw and battery temperature instead of 0.
+
 ## [1.1.1] - 2026-02-25
 
 ### Fixed

@@ -92,6 +92,23 @@ class TestJsonOutput:
         assert "T" in details["start_time"]
 
 
+class TestHardwareOutput:
+    def test_hardware_report_header_only(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """--hardware without API key still shows header-based hardware info."""
+        main([str(SAMPLE_LOG), "--hardware"])
+        out = capsys.readouterr().out
+        assert "AIRCRAFT" in out
+        assert "CAMERA" in out
+        assert "REMOTE CONTROLLER" in out
+        assert "BATTERY" in out
+
+    def test_hardware_report_contains_serials(self, capsys: pytest.CaptureFixture[str]) -> None:
+        main([str(SAMPLE_LOG), "--hardware"])
+        out = capsys.readouterr().out
+        assert "Serial:" in out
+        assert "Product type:" in out
+
+
 class TestExportsRequireApiKey:
     """v14 logs require API key for frame-based exports."""
 

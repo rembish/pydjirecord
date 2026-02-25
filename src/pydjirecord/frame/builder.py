@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from copy import deepcopy
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ..record.app_serious_warn import AppSeriousWarn
@@ -178,10 +179,12 @@ def records_to_frames(records: list[Record], details: Details) -> list[Frame]:
         elif isinstance(data, CenterBattery):
             frame.battery.charge_level = data.relative_capacity
             frame.battery.voltage = data.voltage
+            frame.battery.current = data.current
             frame.battery.current_capacity = data.current_capacity
             frame.battery.full_capacity = data.full_capacity
             frame.battery.lifetime_remaining = data.life
             frame.battery.number_of_discharges = data.number_of_discharges
+            frame.battery.temperature = data.temperature
             frame.battery.is_cell_voltage_estimated = False
 
             cvs = frame.battery.cell_voltages
@@ -402,6 +405,33 @@ def compute_photo_num(frames: list[Frame]) -> int:
     if first is None or last is None:
         return 0
     return max(0, first - last)
+
+
+@dataclass
+class RCSignalStats:
+    """Summary statistics for RC link signal quality."""
+
+    uplink_min: int | None = None
+    uplink_avg: float | None = None
+    downlink_min: int | None = None
+    downlink_avg: float | None = None
+
+
+def compute_rc_signal(frames: list[Frame]) -> RCSignalStats:
+    """Compute min/avg signal percentages for uplink and downlink."""
+    up_vals: list[int] = []
+    dn_vals: list[int] = []
+    for frame in frames:
+        if frame.rc.uplink_signal is not None:
+            up_vals.append(frame.rc.uplink_signal)
+        if frame.rc.downlink_signal is not None:
+            dn_vals.append(frame.rc.downlink_signal)
+    return RCSignalStats(
+        uplink_min=min(up_vals) if up_vals else None,
+        uplink_avg=sum(up_vals) / len(up_vals) if up_vals else None,
+        downlink_min=min(dn_vals) if dn_vals else None,
+        downlink_avg=sum(dn_vals) / len(dn_vals) if dn_vals else None,
+    )
 
 
 def compute_flight_anomalies(frames: list[Frame]) -> FlightAnomaly:

@@ -39,7 +39,7 @@ make install
 The package installs a `djirecord` command:
 
 ```bash
-djirecord FILE [--json | --raw | --geojson | --kml | --csv] [-o FILE] [--api-key KEY]
+djirecord FILE [--json | --raw | --geojson | --kml | --csv | --hardware] [-o FILE] [--api-key KEY]
 ```
 
 ### Flight info (default)
@@ -92,6 +92,42 @@ djirecord flight.txt --csv -o telemetry.csv --api-key YOUR_KEY
 ```
 
 Format flags are mutually exclusive. Output defaults to stdout (`-o -`).
+
+### Hardware report
+
+```bash
+djirecord flight.txt --hardware --api-key YOUR_KEY
+```
+
+```
+AIRCRAFT
+  Model:          DJI Mini 4 Pro
+  Product type:   MINI4_PRO
+  Serial:         1581F6Z9C23CP003
+
+CAMERA
+  Serial:         6TVQLBJ0M209BS
+  SD card:        inserted
+
+REMOTE CONTROLLER
+  Serial:         6UZBLCN021016H
+  Downlink:       min 0%, avg 80%
+  Uplink:         min 1%, avg 85%
+
+BATTERY
+  Serial:         7BVPLBVDA104J3
+  Design cap:     2590 mAh
+  Charge cycles:  3
+  Charge:         99% -> 81% (used 18%)
+  Temperature:    29.5 - 39.2 C
+  Cells:          2, deviation 4 mV
+
+FLIGHT CONTROLLER
+  Failsafe:       GO_HOME
+  Obstacle avd:   ON
+```
+
+Shows aircraft, camera, RC (signal quality, pilot GPS if available), battery health (design capacity, charge cycles, voltage range, cell deviation), firmware versions, flight controller settings, and component serials. Works without an API key (header-only mode) but shows more with decrypted frames.
 
 ### API key
 

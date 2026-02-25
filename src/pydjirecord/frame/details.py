@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from .. import frame as _frame_mod
     from ..layout.details import Details, Platform
     from .anomaly import FlightAnomaly
+    from .builder import RCSignalStats
 
 
 @dataclass
@@ -55,6 +56,7 @@ class FrameDetails:
     app_platform: Platform | None = None
     app_version: str = ""
     anomaly: FlightAnomaly | None = None
+    rc_signal: RCSignalStats | None = None
 
     @classmethod
     def from_details(
@@ -68,17 +70,20 @@ class FrameDetails:
         photo_num = d.capture_num
         video_time: float = float(d.video_time)
         anomaly: FlightAnomaly | None = None
+        rc_signal: RCSignalStats | None = None
         if frames is not None:
             from .builder import (
                 compute_coordinates,
                 compute_flight_anomalies,
                 compute_photo_num,
+                compute_rc_signal,
                 compute_video_time,
             )
 
             photo_num = compute_photo_num(frames)
             video_time = compute_video_time(frames)
             anomaly = compute_flight_anomalies(frames)
+            rc_signal = compute_rc_signal(frames)
             if latitude == 0.0 and longitude == 0.0:
                 latitude, longitude = compute_coordinates(frames)
             if frames:
@@ -101,4 +106,5 @@ class FrameDetails:
             app_platform=d.app_platform,
             app_version=d.app_version,
             anomaly=anomaly,
+            rc_signal=rc_signal,
         )

@@ -14,6 +14,7 @@ from pydjirecord.frame.builder import (
     compute_coordinates,
     compute_flight_anomalies,
     compute_photo_num,
+    compute_rc_signal,
     compute_video_time,
     records_to_frames,
 )
@@ -902,3 +903,34 @@ class TestFlightAnomalies:
         frame.osd.height = -10.0  # would be AMBER alone
         anomaly = compute_flight_anomalies([frame])
         assert anomaly.severity == FlightSeverity.RED
+
+
+class TestRCSignalStats:
+    def test_empty_frames(self) -> None:
+        stats = compute_rc_signal([])
+        assert stats.uplink_min is None
+        assert stats.downlink_min is None
+
+    def test_signal_stats(self) -> None:
+        frames = [Frame(), Frame(), Frame()]
+        frames[0].rc.downlink_signal = 80
+        frames[0].rc.uplink_signal = 70
+        frames[1].rc.downlink_signal = 60
+        frames[1].rc.uplink_signal = 90
+        frames[2].rc.downlink_signal = 100
+        frames[2].rc.uplink_signal = 50
+        stats = compute_rc_signal(frames)
+        assert stats.downlink_min == 60
+        assert stats.downlink_avg == 80.0
+        assert stats.uplink_min == 50
+        assert stats.uplink_avg == 70.0
+
+    def test_partial_signal(self) -> None:
+        frames = [Frame(), Frame()]
+        frames[0].rc.downlink_signal = 75
+        # No uplink at all
+        stats = compute_rc_signal(frames)
+        assert stats.downlink_min == 75
+        assert stats.downlink_avg == 75.0
+        assert stats.uplink_min is None
+        assert stats.uplink_avg is None
