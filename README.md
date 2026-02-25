@@ -39,7 +39,7 @@ make install
 The package installs a `djirecord` command:
 
 ```bash
-djirecord FILE [--json | --raw | --geojson | --kml | --csv | --hardware] [-o FILE] [--api-key KEY]
+djirecord FILE [--json | --raw | --geojson | --kml | --csv | --hardware] [-o FILE] [--api-key KEY] [--no-cache] [--no-verify]
 ```
 
 ### Flight info (default)
@@ -142,6 +142,16 @@ Logs version 13 and above use AES-256-CBC encryption. To decrypt them, provide a
 DJI_API_KEY=your_key_here
 ```
 
+**`--no-cache`** skips the local keychain cache and always makes a fresh API call.
+
+**`--no-verify`** disables TLS certificate verification for the DJI API request. Use this if the request fails with a certificate error on your system (e.g. corporate proxies or custom CA stores):
+
+```bash
+djirecord flight.txt --api-key KEY --no-verify
+```
+
+Keychains are cached locally after the first successful fetch, so `--no-verify` is only needed once per unique log file.
+
 ## Library Usage
 
 ```python
@@ -158,6 +168,8 @@ print(log.details.total_distance)
 
 # Decrypt and iterate frames (v13+ needs keychains from the DJI API)
 keychains = log.fetch_keychains("YOUR_API_KEY") if log.version >= 13 else None
+# Pass verify=False if you get a TLS certificate error:
+# keychains = log.fetch_keychains("YOUR_API_KEY", verify=False) if log.version >= 13 else None
 frames = log.frames(keychains)
 
 for frame in frames:
@@ -253,7 +265,9 @@ Version 13 and 14 logs use AES-256-CBC encryption. Decryption requires fetching 
 https://dev.dji.com/...
 ```
 
-In **air-gapped or network-restricted environments** (corporate firewalls, secured laptops), `log.fetch_keychains()` will raise a network error. In that case:
+In **environments with certificate validation issues** (corporate proxies, custom CA stores), `log.fetch_keychains()` may raise a TLS error. Pass `verify=False` or use the `--no-verify` CLI flag to bypass certificate checking. Keychains are cached after the first successful fetch so you only need this once per log file.
+
+In **air-gapped or network-restricted environments** (no outbound HTTPS), `log.fetch_keychains()` will raise a network error. In that case:
 
 - `log.details` (the unencrypted header) is still fully readable.
 - `log.version`, `log.details.aircraft_name`, `log.details.start_time`, etc. work without a network call.
