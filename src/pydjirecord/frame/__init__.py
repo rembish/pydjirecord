@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from .anomaly import FlightAnomaly, FlightSeverity
 from .app import FrameApp
 from .battery import FrameBattery
 from .camera import FrameCamera
@@ -16,6 +17,8 @@ from .rc import FrameRC
 from .recover import FrameRecover
 
 __all__ = [
+    "FlightAnomaly",
+    "FlightSeverity",
     "Frame",
     "FrameApp",
     "FrameBattery",

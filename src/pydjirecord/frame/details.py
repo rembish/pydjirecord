@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .. import frame as _frame_mod
     from ..layout.details import Details, Platform
+    from .anomaly import FlightAnomaly
 
 
 @dataclass
@@ -53,6 +54,7 @@ class FrameDetails:
     rc_sn: str = ""
     app_platform: Platform | None = None
     app_version: str = ""
+    anomaly: FlightAnomaly | None = None
 
     @classmethod
     def from_details(
@@ -65,11 +67,18 @@ class FrameDetails:
         total_distance = d.total_distance
         photo_num = d.capture_num
         video_time: float = float(d.video_time)
+        anomaly: FlightAnomaly | None = None
         if frames is not None:
-            from .builder import compute_coordinates, compute_photo_num, compute_video_time
+            from .builder import (
+                compute_coordinates,
+                compute_flight_anomalies,
+                compute_photo_num,
+                compute_video_time,
+            )
 
             photo_num = compute_photo_num(frames)
             video_time = compute_video_time(frames)
+            anomaly = compute_flight_anomalies(frames)
             if latitude == 0.0 and longitude == 0.0:
                 latitude, longitude = compute_coordinates(frames)
             if frames:
@@ -91,4 +100,5 @@ class FrameDetails:
             rc_sn=d.rc_sn,
             app_platform=d.app_platform,
             app_version=d.app_version,
+            anomaly=anomaly,
         )

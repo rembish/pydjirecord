@@ -167,6 +167,33 @@ photos = compute_photo_num(frames)                                # remain_photo
 video_seconds = compute_video_time(frames)                        # sum of record_time segments
 ```
 
+### Flight anomaly detection
+
+`FrameDetails` automatically classifies flight anomalies when frames are provided:
+
+```python
+details = FrameDetails.from_details(log.details, frames)
+
+if details.anomaly and details.anomaly.severity != FlightSeverity.GREEN:
+    print(f"Severity: {details.anomaly.severity.name}")
+    print(f"Actions:  {[a.name for a in details.anomaly.actions]}")
+    print(f"Motor blocked: {details.anomaly.motor_blocked}")
+    print(f"Max descent:   {details.anomaly.max_descent_speed:.1f} m/s")
+```
+
+Or call the function directly:
+
+```python
+from pydjirecord.frame.builder import compute_flight_anomalies
+from pydjirecord.frame.anomaly import FlightSeverity
+
+anomaly = compute_flight_anomalies(frames)
+if anomaly.severity == FlightSeverity.RED:
+    print("Critical flight anomaly detected")
+```
+
+Severity levels: **RED** (loss of control, forced landing, motor failure, freefall), **AMBER** (low battery RTH, GPS degradation, negative final altitude), **GREEN** (normal flight).
+
 ## Known Limitations
 
 ### Header field caveats
@@ -211,7 +238,7 @@ The core parsing pipeline, frame builder, and all export formats work. Record ty
 
 **Testing coverage**:
 
-The author only has format version 14 logs (Mavic Air 2). Older format versions (v1-12) are tested only through crafted binary data in unit tests, not with real flight logs. **If you have DJI flight logs from older drones or older DJI app versions (format versions 1 through 12), please consider contributing them** — even a single short flight per version would help verify the parsing and decryption paths end-to-end.
+The author has format version 14 logs from Mavic Air 2 and Mini 4 Pro (RC2). Older format versions (v1-12) are tested only through crafted binary data in unit tests, not with real flight logs. **If you have DJI flight logs from older drones or older DJI app versions (format versions 1 through 12), please consider contributing them** — even a single short flight per version would help verify the parsing and decryption paths end-to-end.
 
 ## Development
 

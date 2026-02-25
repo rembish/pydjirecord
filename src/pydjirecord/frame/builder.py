@@ -15,7 +15,7 @@ from ..record.custom import Custom
 from ..record.gimbal import Gimbal
 from ..record.home import Home
 from ..record.ofdm import OFDM
-from ..record.osd import OSD, AppCommand, GroundOrSky
+from ..record.osd import OSD, AppCommand, FlightAction, GroundOrSky
 from ..record.rc import RC
 from ..record.rc_display_field import RCDisplayField
 from ..record.recover import Recover
@@ -27,6 +27,7 @@ from ..record.smart_battery_group import (
 )
 from ..utils import append_message, haversine_distance
 from . import Frame
+from .anomaly import AMBER_ACTIONS, RED_ACTIONS, FlightAnomaly, FlightSeverity
 from .battery import FrameBattery
 from .recover import FrameRecover
 
@@ -399,3 +400,75 @@ def compute_photo_num(frames: list[Frame]) -> int:
     if first is None or last is None:
         return 0
     return max(0, first - last)
+
+
+def compute_flight_anomalies(frames: list[Frame]) -> FlightAnomaly:
+    """Classify flight anomalies from frame data.
+
+    Single pass through frames collecting anomaly indicators and returning
+    the highest applicable severity.
+    """
+    anomaly_actions: list[FlightAction] = []
+    seen_actions: set[FlightAction] = set()
+    motor_blocked = False
+    max_descent_speed = 0.0
+    final_altitude = 0.0
+    gps_degraded_count = 0
+    total_frames = len(frames)
+
+    for frame in frames:
+        osd = frame.osd
+
+        # Collect anomaly actions (deduplicated, preserving first-seen order)
+        action = osd.flight_action
+        if (
+            action is not None
+            and action != FlightAction.NONE
+            and (action in RED_ACTIONS or action in AMBER_ACTIONS)
+            and action not in seen_actions
+        ):
+            anomaly_actions.append(action)
+            seen_actions.add(action)
+
+        # Motor blocked during flight (height > 1.0 filters startup failures)
+        if osd.is_motor_blocked and osd.height > 1.0:
+            motor_blocked = True
+
+        # Track max descent speed (positive z_speed = descending)
+        if osd.z_speed > max_descent_speed:
+            max_descent_speed = osd.z_speed
+
+        # GPS degradation
+        if osd.gps_level < 3:
+            gps_degraded_count += 1
+
+    # Final altitude from last frame
+    if frames:
+        final_altitude = frames[-1].osd.height
+
+    gps_degraded_ratio = gps_degraded_count / total_frames if total_frames > 0 else 0.0
+
+    # Classify severity (highest wins)
+    severity = FlightSeverity.GREEN
+
+    # RED checks
+    has_red_action = any(a in RED_ACTIONS for a in anomaly_actions)
+    if has_red_action or motor_blocked or max_descent_speed > 10.0:
+        severity = FlightSeverity.RED
+
+    # AMBER checks (only if not already RED)
+    elif (
+        any(a in AMBER_ACTIONS for a in anomaly_actions)
+        or final_altitude < -5.0
+        or (gps_degraded_ratio > 0.5 and total_frames >= 100)
+    ):
+        severity = FlightSeverity.AMBER
+
+    return FlightAnomaly(
+        severity=severity,
+        actions=anomaly_actions,
+        motor_blocked=motor_blocked,
+        max_descent_speed=max_descent_speed,
+        final_altitude=final_altitude,
+        gps_degraded_ratio=gps_degraded_ratio,
+    )

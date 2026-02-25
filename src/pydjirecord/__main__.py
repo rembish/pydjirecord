@@ -17,6 +17,7 @@ from .export.csv import export_csv
 from .export.geojson import export_geojson
 from .export.json import export_json
 from .export.kml import export_kml
+from .frame.anomaly import FlightSeverity
 from .frame.details import FrameDetails
 
 if TYPE_CHECKING:
@@ -85,6 +86,23 @@ def _print_info(log: DJILog, frames: list[Frame] | None = None) -> None:
 
     # App
     lines.append(f"App:          {d.app_platform.name} v{d.app_version}")
+
+    # Anomaly
+    if fd.anomaly is not None and fd.anomaly.severity != FlightSeverity.GREEN:
+        reasons: list[str] = []
+        for action in fd.anomaly.actions:
+            reasons.append(action.name)
+        if fd.anomaly.motor_blocked:
+            reasons.append("MOTOR_BLOCKED")
+        if fd.anomaly.max_descent_speed > 10.0:
+            reasons.append("freefall")
+        if fd.anomaly.final_altitude < -5.0:
+            reasons.append("negative_altitude")
+        if fd.anomaly.gps_degraded_ratio > 0.5:
+            reasons.append("gps_degraded")
+        detail = ", ".join(reasons) if reasons else ""
+        label = fd.anomaly.severity.name
+        lines.append(f"Anomaly:      {label} ({detail})" if detail else f"Anomaly:      {label}")
 
     print("\n".join(lines))
 

@@ -2,6 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-02-25
+
+### Added
+
+- **Flight anomaly detection**: New `FlightAnomaly` dataclass and
+  `FlightSeverity` enum (`GREEN`, `AMBER`, `RED`) for programmatic
+  classification of flight safety events.
+- `compute_flight_anomalies(frames)` in `frame.builder` — single-pass
+  analysis that collects anomaly actions, motor-blocked-during-flight,
+  max descent speed, final altitude, and GPS degradation ratio.
+- `FrameDetails.anomaly` field — automatically populated when frames are
+  provided to `FrameDetails.from_details()`.
+- CLI info mode now displays `Anomaly: RED/AMBER (reasons)` for non-GREEN
+  flights.
+- `FlightAnomaly` and `FlightSeverity` exported from `pydjirecord.frame`.
+- 12 new tests covering RED, AMBER, and GREEN severity classification,
+  edge cases (startup motor block, empty frames, RED overriding AMBER).
+
+### Classification
+
+**RED** — any of: `OUT_OF_CONTROL_GO_HOME`, `BATTERY_FORCE_LANDING`,
+`SERIOUS_LOW_VOLTAGE_LANDING`, `MOTORBLOCK_LANDING`, `FAKE_BATTERY_LANDING`,
+`RTH_COMING_OBSTACLE_LANDING`, `IMU_ERROR_RTH`, `MC_PROTECT_GO_HOME`;
+motor blocked during flight (height > 1 m); descent speed > 10 m/s.
+
+**AMBER** — any of: `WARNING_POWER_GO_HOME`, `WARNING_POWER_LANDING`,
+`SMART_POWER_GO_HOME`, `SMART_POWER_LANDING`, `LOW_VOLTAGE_LANDING`,
+`LOW_VOLTAGE_GO_HOME`, `AVOID_GROUND_LANDING`, `AIRPORT_AVOID_LANDING`,
+`TOO_CLOSE_GO_HOME_LANDING`, `TOO_FAR_GO_HOME_LANDING`,
+`APP_REQUEST_FORCE_LANDING`; final altitude < -5 m; GPS degraded > 50 %
+of flight (min 100 frames).
+
+### Fixed
+
+- `VERT_LOW_LIMIT_LANDING` removed from amber actions — it fires on
+  virtually every normal landing (standard "reached ground" action) and
+  was producing false positives on 41 of 47 tested Mini 4 Pro flights.
+
 ## [1.0.3] - 2026-02-24
 
 ### Fixed

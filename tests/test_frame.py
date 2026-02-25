@@ -5,12 +5,14 @@ from __future__ import annotations
 import math
 
 from pydjirecord.frame import Frame
+from pydjirecord.frame.anomaly import FlightSeverity
 from pydjirecord.frame.battery import FrameBattery
 from pydjirecord.frame.builder import (
     _finalize,
     _is_valid_gps,
     _reset,
     compute_coordinates,
+    compute_flight_anomalies,
     compute_photo_num,
     compute_video_time,
     records_to_frames,
@@ -777,3 +779,126 @@ class TestFrameDetailsCoordinates:
         d = Details(product_type=ProductType.MAVIC_AIR2, total_distance=1234.5)
         fd = FrameDetails.from_details(d)
         assert fd.total_distance == 1234.5
+
+
+def _make_frames_with_osd(**overrides: object) -> list[Frame]:
+    """Build a list with a single Frame whose OSD fields are overridden."""
+    frame = Frame()
+    for key, value in overrides.items():
+        setattr(frame.osd, key, value)
+    return [frame]
+
+
+class TestFlightAnomalies:
+    def test_red_battery_force_landing(self) -> None:
+        """BATTERY_FORCE_LANDING action triggers RED severity."""
+        frames = _make_frames_with_osd(
+            flight_action=FlightAction.BATTERY_FORCE_LANDING,
+            height=50.0,
+        )
+        anomaly = compute_flight_anomalies(frames)
+        assert anomaly.severity == FlightSeverity.RED
+        assert FlightAction.BATTERY_FORCE_LANDING in anomaly.actions
+
+    def test_red_out_of_control(self) -> None:
+        """OUT_OF_CONTROL_GO_HOME action triggers RED severity."""
+        frames = _make_frames_with_osd(
+            flight_action=FlightAction.OUT_OF_CONTROL_GO_HOME,
+            height=30.0,
+        )
+        anomaly = compute_flight_anomalies(frames)
+        assert anomaly.severity == FlightSeverity.RED
+
+    def test_red_motor_blocked_during_flight(self) -> None:
+        """Motor blocked at altitude > 1m triggers RED severity."""
+        frames = _make_frames_with_osd(
+            is_motor_blocked=True,
+            height=50.0,
+        )
+        anomaly = compute_flight_anomalies(frames)
+        assert anomaly.severity == FlightSeverity.RED
+        assert anomaly.motor_blocked is True
+
+    def test_red_freefall(self) -> None:
+        """Descent speed > 10 m/s triggers RED severity."""
+        frames = _make_frames_with_osd(
+            z_speed=12.0,
+            height=100.0,
+        )
+        anomaly = compute_flight_anomalies(frames)
+        assert anomaly.severity == FlightSeverity.RED
+        assert anomaly.max_descent_speed == 12.0
+
+    def test_amber_smart_power_go_home(self) -> None:
+        """SMART_POWER_GO_HOME action triggers AMBER severity."""
+        frames = _make_frames_with_osd(
+            flight_action=FlightAction.SMART_POWER_GO_HOME,
+            height=30.0,
+        )
+        anomaly = compute_flight_anomalies(frames)
+        assert anomaly.severity == FlightSeverity.AMBER
+        assert FlightAction.SMART_POWER_GO_HOME in anomaly.actions
+
+    def test_amber_negative_final_altitude(self) -> None:
+        """Final altitude < -5m triggers AMBER severity."""
+        frames = _make_frames_with_osd(height=-10.0)
+        anomaly = compute_flight_anomalies(frames)
+        assert anomaly.severity == FlightSeverity.AMBER
+        assert anomaly.final_altitude == -10.0
+
+    def test_amber_gps_degraded(self) -> None:
+        """GPS degraded > 50% of flight (min 100 frames) triggers AMBER."""
+        frames: list[Frame] = []
+        for _ in range(100):
+            frame = Frame()
+            frame.osd.gps_level = 2
+            frames.append(frame)
+        anomaly = compute_flight_anomalies(frames)
+        assert anomaly.severity == FlightSeverity.AMBER
+        assert anomaly.gps_degraded_ratio == 1.0
+
+    def test_amber_gps_degraded_below_min_frames(self) -> None:
+        """GPS degradation with < 100 frames does not trigger AMBER."""
+        frames: list[Frame] = []
+        for _ in range(50):
+            frame = Frame()
+            frame.osd.gps_level = 2
+            frames.append(frame)
+        anomaly = compute_flight_anomalies(frames)
+        assert anomaly.severity == FlightSeverity.GREEN
+
+    def test_green_normal_flight(self) -> None:
+        """Normal flight with no anomalies is GREEN."""
+        frames = _make_frames_with_osd(
+            height=50.0,
+            z_speed=1.0,
+            gps_level=4,
+            flight_action=FlightAction.NONE,
+        )
+        anomaly = compute_flight_anomalies(frames)
+        assert anomaly.severity == FlightSeverity.GREEN
+        assert anomaly.actions == []
+        assert anomaly.motor_blocked is False
+
+    def test_startup_motor_block_not_counted(self) -> None:
+        """Motor blocked at height=0 (startup) is NOT counted."""
+        frames = _make_frames_with_osd(
+            is_motor_blocked=True,
+            height=0.0,
+        )
+        anomaly = compute_flight_anomalies(frames)
+        assert anomaly.motor_blocked is False
+        assert anomaly.severity == FlightSeverity.GREEN
+
+    def test_empty_frames(self) -> None:
+        """Empty frame list returns GREEN with no anomalies."""
+        anomaly = compute_flight_anomalies([])
+        assert anomaly.severity == FlightSeverity.GREEN
+
+    def test_red_overrides_amber(self) -> None:
+        """When both RED and AMBER conditions exist, severity is RED."""
+        frame = Frame()
+        frame.osd.flight_action = FlightAction.BATTERY_FORCE_LANDING
+        frame.osd.height = -10.0  # would be AMBER alone
+        anomaly = compute_flight_anomalies([frame])
+        assert anomaly.severity == FlightSeverity.RED
