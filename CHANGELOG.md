@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2026-02-25
+
+### Fixed
+
+- **`Details.take_off_altitude` missing `/10.0` scaling**: the raw binary
+  value is stored in decimetres (same encoding as `Home.altitude`), but was
+  returned as-is instead of being divided by 10.  Altitudes were off by 10×
+  (e.g. `-145.8 m` instead of `-14.6 m`).  Verified against GPS coordinates
+  for two independent flights.
+
+### Added
+
+- **`--no-verify` CLI flag**: disables TLS certificate verification for the
+  DJI keychain API request (`httpx verify=False`).  Useful in environments
+  where the system CA bundle does not include the DJI API certificate chain.
+  Also exposed as a `verify` keyword argument on `KeychainsRequest.fetch()`
+  and `DJILog.fetch_keychains()` for programmatic use.
+- **Keychain cache limit raised to 2048** (was 256): the previous cap caused
+  LRU eviction for users with more than 256 flights, forcing repeated API
+  calls.  2048 entries use ~10 MB on disk and cover several years of typical
+  flight activity.
+
 ## [1.2.0] - 2026-02-25
 
 ### Added

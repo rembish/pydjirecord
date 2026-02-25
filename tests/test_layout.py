@@ -156,7 +156,7 @@ class TestDetails:
         buf += b"\x00" * 16  # _user_api_center_id_md5
 
         # version > 5 sequential fields
-        buf += struct.pack("<f", 45.0)  # take_off_altitude
+        buf += struct.pack("<f", 450.0)  # take_off_altitude raw (450.0/10 = 45.0)
         buf += struct.pack("<B", 13)  # product_type = MAVIC_PRO
         buf += struct.pack("<q", 0)  # _activation_timestamp
         buf += b"MyDrone\x00" + b"\x00" * 24  # aircraft_name (32)

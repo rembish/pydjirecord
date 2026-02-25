@@ -271,6 +271,7 @@ def _get_keychains(
     custom_version: int | None = None,
     *,
     cache: bool = True,
+    verify: bool = True,
 ) -> list[list[KeychainFeaturePoint]] | None:
     """Fetch keychains for v13+ logs, return None for older versions."""
     if log.version < 13:
@@ -284,8 +285,8 @@ def _get_keychains(
             req.department = custom_department
         if custom_version is not None:
             req.version = custom_version
-        return req.fetch(api_key, cache=cache)
-    return log.fetch_keychains(api_key, cache=cache)
+        return req.fetch(api_key, cache=cache, verify=verify)
+    return log.fetch_keychains(api_key, cache=cache, verify=verify)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -309,6 +310,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--api-custom-department", metavar="INT", type=int, help="override keychain API department")
     parser.add_argument("--api-custom-version", metavar="INT", type=int, help="override keychain API version")
     parser.add_argument("--no-cache", action="store_true", default=False, help="disable local keychain cache")
+    parser.add_argument("--no-verify", action="store_true", default=False, help="disable TLS certificate verification for API requests")
 
     return parser
 
@@ -332,6 +334,7 @@ def main(argv: list[str] | None = None) -> None:
     custom_department: int | None = args.api_custom_department
     custom_version: int | None = args.api_custom_version
     use_cache: bool = not args.no_cache
+    use_verify: bool = not args.no_verify
     output_path: str = args.output
 
     # Hardware report
@@ -343,7 +346,7 @@ def main(argv: list[str] | None = None) -> None:
                 hw_records = log.records(None)
                 hw_frames = log.frames(None)
             elif api_key:
-                keychains = _get_keychains(log, api_key, custom_department, custom_version, cache=use_cache)
+                keychains = _get_keychains(log, api_key, custom_department, custom_version, cache=use_cache, verify=use_verify)
                 hw_records = log.records(keychains)
                 hw_frames = log.frames(keychains)
         except (DJILogError, httpx.HTTPError, ValueError, OSError) as exc:
@@ -358,7 +361,7 @@ def main(argv: list[str] | None = None) -> None:
             if log.version < 13:
                 info_frames = log.frames(None)
             elif api_key:
-                keychains = _get_keychains(log, api_key, custom_department, custom_version, cache=use_cache)
+                keychains = _get_keychains(log, api_key, custom_department, custom_version, cache=use_cache, verify=use_verify)
                 info_frames = log.frames(keychains)
         except (DJILogError, httpx.HTTPError, ValueError, OSError) as exc:
             print(f"Warning: frame decryption failed ({exc}), showing header values only", file=sys.stderr)
@@ -369,7 +372,7 @@ def main(argv: list[str] | None = None) -> None:
     # JSON / raw JSON
     if args.json or args.raw:
         if args.raw or api_key or log.version < 13:
-            keychains = _get_keychains(log, api_key, custom_department, custom_version, cache=use_cache)
+            keychains = _get_keychains(log, api_key, custom_department, custom_version, cache=use_cache, verify=use_verify)
             if args.raw:
                 records = log.records(keychains)
                 text = export_json(log, raw_records=records)
@@ -386,7 +389,7 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     # Frame-based exports require decryption
-    keychains = _get_keychains(log, api_key, custom_department, custom_version, cache=use_cache)
+    keychains = _get_keychains(log, api_key, custom_department, custom_version, cache=use_cache, verify=use_verify)
     frames = log.frames(keychains)
 
     if args.kml:

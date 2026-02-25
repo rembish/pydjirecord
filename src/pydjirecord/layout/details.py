@@ -329,7 +329,7 @@ class Details:
         # -- version-dependent section -------------------------------------
         if version <= 5:
             r.seek(352)
-        take_off_altitude = r.read_f32()
+        take_off_altitude = r.read_f32() / 10.0
 
         if version <= 5:
             r.seek(277)

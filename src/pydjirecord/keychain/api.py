@@ -19,7 +19,7 @@ from .feature_point import FeaturePoint
 _ENDPOINT = "https://dev.dji.com/openapi/v1/flight-records/keychains"
 _TIMEOUT = 30.0
 _CACHE_TTL = 30 * 24 * 3600  # 30 days in seconds
-_CACHE_MAX_ENTRIES = 256
+_CACHE_MAX_ENTRIES = 2048
 
 _log = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ class KeychainsRequest:
             "keychainsArray": [[fp.to_dict() for fp in group] for group in self.keychains],
         }
 
-    def fetch(self, api_key: str, *, cache: bool = True) -> list[list[KeychainFeaturePoint]]:
+    def fetch(self, api_key: str, *, cache: bool = True, verify: bool = True) -> list[list[KeychainFeaturePoint]]:
         """Fetch decoded keychains from DJI API.
 
         When *cache* is ``True`` (default), responses are cached locally
@@ -111,6 +111,7 @@ class KeychainsRequest:
                 json=body,
                 headers={"Api-Key": api_key, "Content-Type": "application/json"},
                 timeout=_TIMEOUT,
+                verify=verify,
             )
         except httpx.HTTPError as exc:
             raise ApiError(f"Network error: {exc}") from exc
