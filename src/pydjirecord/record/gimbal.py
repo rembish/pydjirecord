@@ -39,6 +39,7 @@ class Gimbal:
 
     @classmethod
     def from_bytes(cls, data: bytes, version: int) -> Gimbal:
+        """Parse gimbal record from binary data."""
         r = BinaryReader(data)
         pitch = r.read_i16() / 10.0
         roll = r.read_i16() / 10.0

@@ -29,6 +29,7 @@ class CenterBattery:
 
     @classmethod
     def from_bytes(cls, data: bytes, version: int) -> CenterBattery:
+        """Parse center battery record from binary data."""
         r = BinaryReader(data)
         relative_capacity = r.read_u8()
         voltage = r.read_u16() / 1000.0

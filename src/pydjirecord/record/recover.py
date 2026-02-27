@@ -23,6 +23,7 @@ class Recover:
 
     @classmethod
     def from_bytes(cls, data: bytes, version: int) -> Recover:
+        """Parse recover record from binary data."""
         r = BinaryReader(data)
         product_type = ProductType(r.read_u8())
         app_platform = Platform(r.read_u8())

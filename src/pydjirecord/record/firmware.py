@@ -36,6 +36,7 @@ class Firmware:
 
     @classmethod
     def from_bytes(cls, data: bytes, version: int = 0) -> Firmware:
+        """Parse firmware version record from binary data."""
         r = BinaryReader(data)
         sender_type = SenderType(r.read_u8())
         sub_sender_type = r.read_u8()

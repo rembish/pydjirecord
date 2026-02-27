@@ -4,6 +4,8 @@ Python parser for DJI drone flight log files (`.txt` binary format).
 
 Supports all log format versions 1 through 14, including XOR encoding (v7-12) and AES-256-CBC encryption (v13-14) with per-feature-point keys fetched from the DJI API.
 
+[Documentation](https://rembish.github.io/pydjirecord/) | [Changelog](CHANGELOG.md) | [PyPI](https://pypi.org/project/pydjirecord/)
+
 ## Acknowledgments
 
 This project is a Python rewrite of [dji-log-parser](https://github.com/lvauvillier/dji-log-parser) by [Luc Vauvillier](https://github.com/lvauvillier). The Rust implementation is the authoritative reference for parsing logic, binary layouts, and encryption details. Thank you for the excellent work and for making it open source.
@@ -307,6 +309,8 @@ make lint           # ruff check
 make typecheck      # mypy strict
 make integration    # integration + mutation-regression tests, no coverage floor
 make test           # pytest with coverage
+make docs           # build documentation site
+make docs-serve     # serve documentation locally
 make build          # build sdist and wheel into dist/
 ```
 

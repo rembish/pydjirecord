@@ -46,6 +46,7 @@ class EncodedKeychainFeaturePoint:
     aes_ciphertext: str  # base64-encoded
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialise to a dict for the DJI API request body."""
         fp = FeaturePoint(self.feature_point)
         return {
             "featurePoint": fp.api_name,
@@ -71,6 +72,7 @@ class KeychainsRequest:
     keychains: list[list[EncodedKeychainFeaturePoint]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialise to a dict for the DJI API request body."""
         return {
             "version": self.version,
             "department": self.department,

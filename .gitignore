@@ -9,5 +9,6 @@ build/
 .ruff_cache/
 .coverage
 htmlcov/
+site/
 *.egg
 .env

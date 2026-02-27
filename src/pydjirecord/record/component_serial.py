@@ -33,6 +33,7 @@ class ComponentSerial:
 
     @classmethod
     def from_bytes(cls, data: bytes, version: int = 0) -> ComponentSerial:
+        """Parse component serial record from binary data."""
         r = BinaryReader(data)
         component_type = ComponentType(r.read_u16())
         length = r.read_u8()

@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-02-27
+
+### Added
+
+- **Documentation site**: mkdocs + mkdocs-material + mkdocstrings auto-generated
+  API reference, guide pages (installation, CLI, library usage, API key), and
+  encryption overview. Deployed to GitHub Pages via CI.
+- **`docs` optional dependency group**: `pip install 'pydjirecord[docs]'` installs
+  mkdocs, mkdocs-material, and mkdocstrings[python].
+- **`make docs` / `make docs-serve`** Makefile targets for building and previewing
+  the documentation site locally.
+- **GitHub Actions docs workflow** (`.github/workflows/docs.yml`): builds and
+  deploys documentation to GitHub Pages on push to master.
+- Missing docstrings on all public `from_bytes()` classmethods across 17 record
+  types, `Keychain.empty()`, `Keychain.from_feature_points()`,
+  `EncodedKeychainFeaturePoint.to_dict()`, `KeychainsRequest.to_dict()`,
+  `ProductType.battery_cell_num`, `ProductType.battery_num`, and
+  `AuxiliaryVersion.from_bytes()`.
+- Documentation and Changelog URLs in `pyproject.toml` project metadata (shown
+  on PyPI sidebar).
+- Documentation, Changelog, and PyPI quick links in README header.
+
 ## [1.2.1] - 2026-02-25
 
 ### Fixed

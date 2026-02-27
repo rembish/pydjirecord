@@ -34,6 +34,7 @@ class MCParams:
 
     @classmethod
     def from_bytes(cls, data: bytes, version: int = 0) -> MCParams:
+        """Parse flight-controller parameters record from binary data."""
         r = BinaryReader(data)
         fail_safe_protection = FailSafeProtectionType(r.read_u8())
         bp1 = r.read_u8()

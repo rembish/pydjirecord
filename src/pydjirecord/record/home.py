@@ -83,6 +83,7 @@ class Home:
 
     @classmethod
     def from_bytes(cls, data: bytes, version: int) -> Home:
+        """Parse home-point record from binary data."""
         r = BinaryReader(data)
         longitude = math.degrees(r.read_f64())
         latitude = math.degrees(r.read_f64())

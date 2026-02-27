@@ -13,5 +13,6 @@ class AppWarn:
 
     @classmethod
     def from_bytes(cls, data: bytes, version: int = 0) -> AppWarn:
+        """Parse app warning record from binary data."""
         message = data.split(b"\x00", 1)[0].decode("utf-8", errors="replace").strip()
         return cls(message=message)

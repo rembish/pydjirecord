@@ -16,6 +16,7 @@ class KeyStorage:
 
     @classmethod
     def from_bytes(cls, data: bytes, version: int = 0) -> KeyStorage:
+        """Parse key-storage record from binary data."""
         r = BinaryReader(data)
         feature_point = r.read_u16()
         data_length = r.read_u16()

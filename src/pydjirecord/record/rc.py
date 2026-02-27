@@ -38,6 +38,7 @@ class RC:
 
     @classmethod
     def from_bytes(cls, data: bytes, version: int, product_type: ProductType = ProductType.NONE) -> RC:
+        """Parse RC record from binary data."""
         r = BinaryReader(data)
         aileron = r.read_u16()
         elevator = r.read_u16()

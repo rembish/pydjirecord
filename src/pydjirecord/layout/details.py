@@ -89,10 +89,12 @@ class ProductType(enum.IntEnum):
 
     @property
     def battery_cell_num(self) -> int:
+        """Number of cells per battery for this product type."""
         return _BATTERY_CELL_NUM.get(self.value, 4)
 
     @property
     def battery_num(self) -> int:
+        """Number of batteries for this product type."""
         return _BATTERY_NUM.get(self.value, 1)
 
 

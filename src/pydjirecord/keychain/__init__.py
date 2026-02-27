@@ -35,10 +35,12 @@ class Keychain:
 
     @classmethod
     def empty(cls) -> Keychain:
+        """Return an empty keychain (no feature-point keys)."""
         return cls()
 
     @classmethod
     def from_feature_points(cls, entries: Sequence[KeychainFeaturePoint]) -> Keychain:
+        """Build a keychain from decoded feature-point entries."""
         kc = cls()
         for entry in entries:
             try:

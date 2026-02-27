@@ -38,6 +38,7 @@ class RCGPS:
 
     @classmethod
     def from_bytes(cls, data: bytes) -> RCGPS:
+        """Parse RC GPS record from binary data."""
         r = BinaryReader(data)
         hour = r.read_u8()
         minute = r.read_u8()

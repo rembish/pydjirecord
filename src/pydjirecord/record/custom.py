@@ -16,6 +16,7 @@ class Custom:
 
     @classmethod
     def from_bytes(cls, data: bytes, version: int = 0) -> Custom:
+        """Parse custom record from binary data."""
         r = BinaryReader(data)
         _camera_shoot = r.read_u8()
         _video_shoot = r.read_u8()

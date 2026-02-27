@@ -1,0 +1,72 @@
+site_name: pydjirecord
+site_description: Python parser for DJI drone flight log files
+site_url: https://rembish.github.io/pydjirecord/
+repo_url: https://github.com/rembish/pydjirecord
+repo_name: rembish/pydjirecord
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue grey
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue grey
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.expand
+    - toc.follow
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: false
+            members_order: source
+            docstring_style: google
+            merge_init_into_class: true
+            show_if_no_docstring: false
+            separate_signature: true
+            show_signature_annotations: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Guide:
+      - Installation: guide/installation.md
+      - CLI: guide/cli.md
+      - Library usage: guide/library.md
+      - API key: guide/api-key.md
+  - API Reference:
+      - DJILog: api/djilog.md
+      - Layout: api/layout.md
+      - Records: api/records.md
+      - Frames: api/frames.md
+      - Keychain: api/keychain.md
+      - Decoder: api/decoder.md
+      - Export: api/export.md
+      - Errors: api/errors.md
+  - Encryption: encryption.md

@@ -16,6 +16,7 @@ class AppGPS:
 
     @classmethod
     def from_bytes(cls, data: bytes, version: int = 0) -> AppGPS:
+        """Parse app GPS record from binary data."""
         r = BinaryReader(data)
         longitude = r.read_f64()
         latitude = r.read_f64()

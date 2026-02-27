@@ -74,6 +74,7 @@ class AuxiliaryVersion:
 
     @classmethod
     def from_bytes(cls, data: bytes) -> AuxiliaryVersion:
+        """Parse version block from raw bytes."""
         r = BinaryReader(data)
         version = r.read_u16()
         department = Department(r.read_u8())

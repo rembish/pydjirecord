@@ -73,6 +73,7 @@ class Camera:
 
     @classmethod
     def from_bytes(cls, data: bytes, version: int = 0) -> Camera:
+        """Parse camera record from binary data."""
         r = BinaryReader(data)
         bp1 = r.read_u8()
         is_shooting_single_photo = bool(sub_byte_field(bp1, 0x38))

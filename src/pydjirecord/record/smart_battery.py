@@ -30,6 +30,7 @@ class SmartBattery:
 
     @classmethod
     def from_bytes(cls, data: bytes, version: int = 0) -> SmartBattery:
+        """Parse smart battery record from binary data."""
         r = BinaryReader(data)
         useful_time = r.read_u16()
         go_home_time = r.read_u16()
