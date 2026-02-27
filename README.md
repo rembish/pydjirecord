@@ -131,7 +131,14 @@ Shows aircraft, camera, RC (signal quality, pilot GPS if available), battery hea
 
 ### API key
 
-Logs version 13 and above use AES-256-CBC encryption. To decrypt them, provide a DJI API key via:
+Logs version 13 and above use AES-256-CBC encryption. To decrypt them you need a DJI API key. To obtain one:
+
+1. Visit [DJI Developer Technologies](https://developer.dji.com/user) and log in.
+2. Click **CREATE APP**, choose **Open API** as the App Type, and fill in the required details (App Name, Category, Description).
+3. Activate the app through the confirmation link sent to your email.
+4. On your developer user page, find your app's details — the ApiKey is labeled as the **SDK key**.
+
+Provide the key via:
 
 - `--api-key KEY` argument
 - `DJI_API_KEY` environment variable
